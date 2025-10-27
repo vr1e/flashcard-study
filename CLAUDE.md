@@ -168,10 +168,19 @@ const element = document.getElementById("my-id") as HTMLElement;
 ### Quick Start
 
 ```bash
+# First time setup
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+npm install
+npm run build
+python manage.py migrate
+
 # Terminal 1: TypeScript watch mode
 npm run watch
 
-# Terminal 2: Django server
+# Terminal 2: Django server (activate venv first)
+source .venv/bin/activate
 python manage.py runserver
 ```
 
@@ -213,3 +222,4 @@ python manage.py migrate
 
 **Last Updated**: 2024-10-25  
 **Next Priority**: Implement view functions in `flashcards/views.py`
+- Don't make it too long, I wand brief and focused documentation that is easily human readable.

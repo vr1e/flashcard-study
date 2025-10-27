@@ -21,39 +21,42 @@ from .models import Deck, Card, StudySession, Review
 # Page Views
 # ============================================================================
 
+@login_required
 def index(request):
     """
     Dashboard/home page.
     Shows all user's decks with due card counts.
     """
-    # TODO: Implement
-    return render(request, 'index.html')
+    decks = Deck.objects.filter(user=request.user).order_by('-updated_at')
+    return render(request, 'index.html', {'decks': decks})
 
 
+@login_required
 def deck_detail(request, deck_id):
     """
     Deck detail page.
     Shows all cards in a deck with management options.
     """
-    # TODO: Implement
-    return render(request, 'deck_detail.html')
+    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    return render(request, 'deck_detail.html', {'deck': deck})
 
 
+@login_required
 def study_view(request, deck_id):
     """
     Study session page.
     Interactive card study interface.
     """
-    # TODO: Implement
-    return render(request, 'study.html')
+    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    return render(request, 'study.html', {'deck': deck})
 
 
+@login_required
 def stats_view(request):
     """
     Statistics page.
     Shows user learning analytics and charts.
     """
-    # TODO: Implement
     return render(request, 'stats.html')
 
 

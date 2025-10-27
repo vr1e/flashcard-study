@@ -1,103 +1,50 @@
 # RFC 0000: [Title]
 
-## Metadata
+**Status**: Draft | Accepted | Implemented | Rejected
+**Created**: YYYY-MM-DD
 
-- **RFC Number**: 0000
-- **Title**: [Feature or component name]
-- **Author**: [Your name]
-- **Status**: [Draft | Accepted | Implemented | Rejected]
-- **Created**: [YYYY-MM-DD]
-- **Last Updated**: [YYYY-MM-DD]
+---
 
-## Summary
+## What are we building?
 
-[1-2 sentence overview of what this RFC proposes]
+[2-3 sentences explaining what this feature/component does in plain English. Imagine explaining it to someone who just joined the project.]
 
-## Motivation
+## Why?
 
-**Why are we doing this?**
+[Explain the problem we're solving or the opportunity we're pursuing. What pain point does this address? What value does it add?]
 
-[Explain the problem or opportunity this RFC addresses. What pain points does it solve? What value does it add?]
+## How?
 
-## Proposed Solution
+[Describe your approach. Include the key technical decisions, architecture patterns, and any important algorithms or data structures.]
 
-**What are we building and how?**
-
-### Overview
-
-[High-level description of the solution]
-
-### Technical Details
-
-[Detailed implementation approach, including:]
-
-- Architecture/design patterns
-- Data structures
-- Algorithms
-- API endpoints (if applicable)
-- Database schema changes (if applicable)
-
-### Code Examples
+### Code Example
 
 ```python
-# Include relevant code snippets or pseudocode
+# Show the core concept with code or pseudocode
+# Keep it simple and focused on the main idea
 ```
 
-### User Interface/Experience
+### Data/API Changes
 
-[If applicable, describe UI changes or user workflows]
+[If this changes the database, API endpoints, or data structures, list them here. Otherwise, skip this subsection.]
 
-## Alternatives Considered
+- Database: [Any new models or fields]
+- API: [New or modified endpoints]
 
-**What other approaches did we evaluate?**
+## Notes
 
-### Alternative 1: [Name]
+[Optional section for anything else worth mentioning:]
 
-- **Description**: [Brief description]
-- **Pros**: [Advantages]
-- **Cons**: [Disadvantages]
-- **Why not chosen**: [Reasoning]
+- Dependencies or libraries needed
+- Tradeoffs made in the design
+- Things we tried that didn't work
+- Open questions or future considerations
+- Security/performance considerations
 
-### Alternative 2: [Name]
+---
 
-- **Description**: [Brief description]
-- **Pros**: [Advantages]
-- **Cons**: [Disadvantages]
-- **Why not chosen**: [Reasoning]
-
-## Implementation Notes
-
-### Dependencies
-
-- [List any external libraries, APIs, or other dependencies]
-
-### Migration Strategy
-
-- [How to handle existing data or users, if applicable]
-
-### Testing Approach
-
-- [Unit tests, integration tests, manual testing scenarios]
-
-### Performance Considerations
-
-- [Expected performance impact, optimization strategies]
-
-### Security Considerations
-
-- [Security implications and mitigations]
-
-## Timeline
-
-- **Estimated Effort**: [Time estimate]
-- **Target Completion**: [Date or milestone]
-
-## Open Questions
-
-- [ ] [Question 1]
-- [ ] [Question 2]
-- [ ] [Question 3]
-
-## References
-
-- [Links to related RFCs, documentation, research papers, etc.]
+**Tips for writing a good RFC:**
+- Write for clarity, not completeness
+- Use code examples to make concepts concrete
+- Focus on the "why" behind decisions
+- Keep it short - if it's getting long, consider splitting into multiple RFCs
