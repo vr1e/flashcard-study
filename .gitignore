@@ -1,40 +1,52 @@
-# dependencies
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+__pycache__/
+*.pyc
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/media
+/static_collected
+*.pot
+*.pyc
+
+# Node.js
 node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# TypeScript
+*.tsbuildinfo
+dist/
+
+# Environment files
+.env
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # macOS
 .DS_Store
 *.pem
 
-# local env files
-.env
-.env*.local
-*.local.*
-
-# typescript
-*.tsbuildinfo
-
-# claude
+# Claude
 .claude
+
+# MCPs
+.playwright-mcp

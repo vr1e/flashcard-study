@@ -1,5 +1,5 @@
 # Django Framework
-Django>=4.2,<5.0
+Django>=5.2.7,<6.0
 
 # Database (SQLite is included with Python/Django)
 
