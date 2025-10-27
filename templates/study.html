@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Study Session - Flashcard Study{% endblock %}
+
+{% block extra_css %}
+<style>
+    .study-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .card-container {
+        perspective: 1000px;
+        min-height: 400px;
+    }
+
+    .flashcard {
+        position: relative;
+        width: 100%;
+        min-height: 400px;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+
+    .flashcard.flipped {
+        transform: rotateY(180deg);
+    }
+
+    .flashcard-front,
+    .flashcard-back {
+        position: absolute;
+        width: 100%;
+        min-height: 400px;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .flashcard-front {
+        background-color: #fff;
+        border: 2px solid #0d6efd;
+    }
+
+    .flashcard-back {
+        background-color: #f8f9fa;
+        border: 2px solid #198754;
+        transform: rotateY(180deg);
+    }
+
+    .rating-buttons button {
+        margin: 0.25rem;
+    }
+
+    .progress-bar-container {
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="study-container">
+    <!-- Progress Bar -->
+    <div class="progress-bar-container">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span id="progress-text">Card 0 of 0</span>
+            <a href="#" id="exit-study" class="text-danger">
+                <i class="bi bi-x-circle"></i> Exit
+            </a>
+        </div>
+        <div class="progress">
+            <div id="progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Study Card Area -->
+    <div id="study-area">
+        <!-- Loading State -->
+        <div id="loading-state" class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading study session...</p>
+        </div>
+
+        <!-- No Cards State -->
+        <div id="no-cards-state" class="text-center d-none">
+            <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+            <h2 class="mt-3">All caught up!</h2>
+            <p class="text-muted">You have no cards due for review right now.</p>
+            <a href="{% url 'index' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-house"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Card Display -->
+        <div id="card-display" class="d-none">
+            <div class="card-container">
+                <div class="flashcard" id="flashcard">
+                    <!-- Front of Card -->
+                    <div class="flashcard-front">
+                        <div class="text-center">
+                            <h2 id="card-front-text">Question appears here</h2>
+                            <button class="btn btn-primary mt-4" id="flip-btn">
+                                <i class="bi bi-arrow-repeat"></i> Show Answer
+                            </button>
+                            <p class="mt-3 text-muted small">
+                                Press <kbd>Space</kbd> to flip
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Back of Card -->
+                    <div class="flashcard-back">
+                        <div class="text-center w-100">
+                            <h3>Answer:</h3>
+                            <p id="card-back-text" class="lead">Answer appears here</p>
+
+                            <hr class="my-4">
+
+                            <h5 class="mb-3">Rate your recall:</h5>
+                            <div class="rating-buttons">
+                                <button class="btn btn-danger btn-lg" onclick="submitRating(0)">
+                                    0 - Total Blackout
+                                </button>
+                                <button class="btn btn-warning btn-lg" onclick="submitRating(1)">
+                                    1 - Wrong, but familiar
+                                </button>
+                                <button class="btn btn-warning btn-lg" onclick="submitRating(2)">
+                                    2 - Wrong, easy to recall
+                                </button>
+                                <button class="btn btn-info btn-lg" onclick="submitRating(3)">
+                                    3 - Correct, difficult
+                                </button>
+                                <button class="btn btn-success btn-lg" onclick="submitRating(4)">
+                                    4 - Correct, with hesitation
+                                </button>
+                                <button class="btn btn-primary btn-lg" onclick="submitRating(5)">
+                                    5 - Perfect!
+                                </button>
+                            </div>
+                            <p class="mt-3 text-muted small">
+                                Or press <kbd>0</kbd>-<kbd>5</kbd>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion State -->
+        <div id="completion-state" class="text-center d-none">
+            <i class="bi bi-trophy text-warning" style="font-size: 4rem;"></i>
+            <h2 class="mt-3">Session Complete!</h2>
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5>Session Summary</h5>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Cards Studied</p>
+                            <h3 id="summary-cards">0</h3>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Time Spent</p>
+                            <h3 id="summary-time">0:00</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{% url 'index' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                <button class="btn btn-success" onclick="location.reload()">
+                    <i class="bi bi-arrow-repeat"></i> Study More
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/api.js' %}"></script>
+<script src="{% static 'js/study.js' %}"></script>
+<script>
+    // Get deck ID from URL
+    const deckId = parseInt(window.location.pathname.split('/')[2]);
+
+    // Initialize study session when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        startStudySession(deckId);
+    });
+</script>
+{% endblock %}
