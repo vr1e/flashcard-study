@@ -1,0 +1,88 @@
+/*
+ * Flashcard Study - Custom Styles
+ * Bootstrap 5 overrides and custom components
+ */
+
+/* Global Styles */
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Deck Cards */
+.deck-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.deck-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Card Items in Deck Detail */
+.card-item {
+    transition: background-color 0.2s;
+}
+
+.card-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Study Page Animations */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+    .rating-buttons button {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .flashcard-front,
+    .flashcard-back {
+        min-height: 300px;
+        padding: 1rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    nav,
+    footer,
+    .btn {
+        display: none;
+    }
+}

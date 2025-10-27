@@ -1,0 +1,25 @@
+{
+	"name": "flashcard-study",
+	"version": "1.0.0",
+	"description": "Flashcard study tool with spaced repetition algorithm",
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc --watch",
+		"dev": "tsc --watch"
+	},
+	"keywords": [
+		"flashcards",
+		"spaced-repetition",
+		"learning",
+		"education"
+	],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"@types/bootstrap": "^5.2.10"
+	},
+	"dependencies": {
+		"chart.js": "^4.5.1"
+	}
+}

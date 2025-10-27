@@ -1,0 +1,10 @@
+# Django Framework
+Django>=4.2,<5.0
+
+# Database (SQLite is included with Python/Django)
+
+# Production server (optional, for deployment)
+gunicorn>=21.2.0
+
+# Development tools (optional)
+django-debug-toolbar>=4.2.0

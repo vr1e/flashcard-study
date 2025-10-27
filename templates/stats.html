@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Statistics - Flashcard Study{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1>Learning Statistics</h1>
+        <p class="text-muted">Track your progress and performance</p>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-stack text-primary" style="font-size: 2rem;"></i>
+                <h3 id="total-decks" class="mt-2">0</h3>
+                <p class="text-muted mb-0">Total Decks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-file-text text-info" style="font-size: 2rem;"></i>
+                <h3 id="total-cards" class="mt-2">0</h3>
+                <p class="text-muted mb-0">Total Cards</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-calendar-check text-success" style="font-size: 2rem;"></i>
+                <h3 id="cards-due" class="mt-2">0</h3>
+                <p class="text-muted mb-0">Cards Due Today</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-fire text-warning" style="font-size: 2rem;"></i>
+                <h3 id="study-streak" class="mt-2">0</h3>
+                <p class="text-muted mb-0">Day Streak</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4">
+    <!-- Cards Due Over Time -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Cards Due Per Day</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="cards-due-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Study Activity -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Study Activity (Last 7 Days)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="study-activity-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Quality by Deck -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Average Quality by Deck</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="deck-quality-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Distribution -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Review Quality Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="quality-distribution-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Study Sessions</h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-sessions" class="table-responsive">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/api.js' %}"></script>
+<script src="{% static 'js/stats.js' %}"></script>
+<script>
+    // Initialize statistics when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStatistics();
+        initializeCharts();
+    });
+</script>
+{% endblock %}
