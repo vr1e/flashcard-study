@@ -90,22 +90,24 @@ def get_study_stats(user, deck=None):
         dict with statistics:
         - total_cards_studied
         - average_quality
-        - study_streak
+        - study_streak_days
         - cards_due_today
+        - recent_activity (last 7 days)
         - etc.
     """
-    from .models import Review, Card, Deck
-    from django.db.models import Avg, Count
+    from .models import Review, Card, Deck, StudySession
+    from django.db.models import Avg, Count, Sum
+    from django.db.models.functions import TruncDate
 
     # Filter reviews by deck if specified
     if deck:
         reviews = Review.objects.filter(card__deck=deck)
         cards = Card.objects.filter(deck=deck)
-        decks_count = 1
+        total_decks = 1
     else:
         reviews = Review.objects.filter(session__user=user)
         cards = Card.objects.filter(deck__user=user)
-        decks_count = Deck.objects.filter(user=user).count()
+        total_decks = Deck.objects.filter(user=user).count()
 
     # Basic statistics
     total_reviews = reviews.count()
@@ -119,16 +121,39 @@ def get_study_stats(user, deck=None):
     cards_due_today = cards.filter(next_review__lte=datetime.now()).count()
 
     # Study streak (simplified: check if user studied in last 24h)
-    from datetime import timedelta
     yesterday = datetime.now() - timedelta(days=1)
     studied_recently = reviews.filter(reviewed_at__gte=yesterday).exists()
-    study_streak = 1 if studied_recently else 0
+    study_streak_days = 1 if studied_recently else 0
+
+    # Recent activity (last 7 days)
+    recent_activity = []
+    for i in range(7):
+        date = datetime.now() - timedelta(days=i)
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        day_reviews = reviews.filter(reviewed_at__gte=day_start, reviewed_at__lte=day_end)
+        cards_studied = day_reviews.count()
+
+        # Sum up time_taken for all reviews on this day
+        time_result = day_reviews.aggregate(Sum('time_taken'))
+        time_spent = time_result['time_taken__sum'] or 0
+
+        recent_activity.append({
+            'date': day_start.strftime('%Y-%m-%d'),
+            'cards_studied': cards_studied,
+            'time_spent': time_spent,
+        })
+
+    # Reverse to get chronological order (oldest to newest)
+    recent_activity.reverse()
 
     return {
         'total_reviews': total_reviews,
         'total_cards': total_cards,
         'average_quality': average_quality,
         'cards_due_today': cards_due_today,
-        'study_streak': study_streak,
-        'decks_count': decks_count,
+        'study_streak_days': study_streak_days,
+        'total_decks': total_decks,
+        'recent_activity': recent_activity,
     }
