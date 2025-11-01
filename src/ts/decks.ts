@@ -59,7 +59,7 @@ function createDeckCard(deck: any): string {
                     <p class="card-text text-muted">${escapeHtml(deck.description) || 'No description'}</p>
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="badge bg-secondary">${deck.total_cards} cards</span>
+                            <span class="badge bg-secondary">${deck.total_cards} card${deck.total_cards === 1 ? '' : 's'}</span>
                             <span class="badge ${deck.cards_due > 0 ? 'bg-danger' : 'bg-success'}">
                                 ${deck.cards_due} due
                             </span>
@@ -71,6 +71,9 @@ function createDeckCard(deck: any): string {
                         <a href="/decks/${deck.id}/" class="btn btn-outline-primary">
                             <i class="bi bi-eye"></i> View
                         </a>
+                        <button class="btn btn-outline-secondary" onclick="editDeck(${deck.id}, '${escapeHtml(deck.title)}', '${escapeHtml(deck.description)}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         ${deck.cards_due > 0 ? `
                             <a href="/decks/${deck.id}/study/" class="btn btn-primary">
                                 <i class="bi bi-play-circle"></i> Study
@@ -157,6 +160,56 @@ async function deleteDeck(deckId: number, deckTitle: string): Promise<void> {
 }
 
 // ============================================================================
+// Edit Deck
+// ============================================================================
+
+/**
+ * Open edit modal and populate with deck data
+ */
+function editDeck(deckId: number, title: string, description: string): void {
+    document.getElementById('edit-deck-id')!.setAttribute('value', deckId.toString());
+    (document.getElementById('edit-deck-title')! as HTMLInputElement).value = title;
+    (document.getElementById('edit-deck-description')! as HTMLTextAreaElement).value = description;
+
+    // Show modal
+    const modal = new (window as any).bootstrap.Modal(document.getElementById('editDeckModal'));
+    modal.show();
+}
+
+/**
+ * Initialize deck edit form
+ */
+function initDeckEdit(): void {
+    const updateBtn = document.getElementById('update-deck-btn');
+    if (!updateBtn) return;
+
+    updateBtn.addEventListener('click', async () => {
+        const deckId = parseInt(document.getElementById('edit-deck-id')!.getAttribute('value') || '0');
+        const title = (document.getElementById('edit-deck-title')! as HTMLInputElement).value.trim();
+        const description = (document.getElementById('edit-deck-description')! as HTMLTextAreaElement).value.trim();
+
+        if (!title) {
+            alert('Please enter a deck title');
+            return;
+        }
+
+        try {
+            await api.updateDeck(deckId, title, description);
+
+            // Close modal
+            const modal = (window as any).bootstrap.Modal.getInstance(document.getElementById('editDeckModal'));
+            if (modal) modal.hide();
+
+            // Reload decks
+            await loadDecks();
+        } catch (error) {
+            console.error('Error updating deck:', error);
+            alert('Failed to update deck. Please try again.');
+        }
+    });
+}
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -176,9 +229,11 @@ function escapeHtml(text: string): string {
 document.addEventListener('DOMContentLoaded', () => {
     loadDecks();
     initDeckCreation();
+    initDeckEdit();
 
     // Expose functions to global scope for HTML onclick handlers
     (window as any).deleteDeck = deleteDeck;
+    (window as any).editDeck = editDeck;
 });
 
 // Make this file a module to avoid global scope conflicts

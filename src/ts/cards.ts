@@ -23,8 +23,10 @@ async function loadDeckDetails(deckId: number): Promise<void> {
         document.getElementById('deck-title')!.textContent = deck.title;
         document.getElementById('deck-description')!.textContent = deck.description || 'No description';
         document.getElementById('deck-title-breadcrumb')!.textContent = deck.title;
-        document.getElementById('cards-due-count')!.textContent = deck.cards_due.toString();
-        document.getElementById('total-cards-count')!.textContent = deck.total_cards.toString();
+        document.getElementById('cards-due-badge')!.textContent =
+            `${deck.cards_due} card${deck.cards_due === 1 ? '' : 's'} due`;
+        document.getElementById('total-cards-badge')!.textContent =
+            `${deck.total_cards} card${deck.total_cards === 1 ? '' : 's'}`;
 
         // Set up study button
         const studyBtn = document.getElementById('study-btn')!;
@@ -280,11 +282,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (deckId) {
         initCardCreation(deckId);
         initCardEditing(deckId);
+        loadDeckDetails(deckId);
+        loadCards(deckId);
     }
 
-    // Expose functions to global scope for HTML onclick handlers
+    // Expose functions to global scope for HTML onclick handlers and template scripts
     (window as any).editCard = editCard;
     (window as any).deleteCard = deleteCard;
+    (window as any).loadDeckDetails = loadDeckDetails;
+    (window as any).loadCards = loadCards;
 });
 
 // Make this file a module to avoid global scope conflicts

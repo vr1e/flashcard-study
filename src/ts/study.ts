@@ -17,6 +17,8 @@ class StudyController {
 	private cardStartTime: number = 0;
 	private sessionStartTime: number = 0;
 	private flipped: boolean = false;
+	private timerInterval: number | null = null;
+	private qualityRatings: number[] = [];
 
 	constructor(deckId: number) {
 		this.deckId = deckId;
@@ -40,6 +42,7 @@ class StudyController {
 				this.showNoCards();
 			} else {
 				this.showCardDisplay();
+				this.startTimer();
 				this.showCard();
 			}
 		} catch (error) {
@@ -107,6 +110,9 @@ class StudyController {
 				time_taken: timeSpent,
 			});
 
+			// Track quality for average calculation
+			this.qualityRatings.push(quality);
+
 			this.nextCard();
 		} catch (error) {
 			console.error("Failed to submit review:", error);
@@ -131,7 +137,17 @@ class StudyController {
 	 * End study session and show summary
 	 */
 	endSession(): void {
+		this.stopTimer();
 		const totalTime = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+
+		// Calculate average quality
+		const avgQuality =
+			this.qualityRatings.length > 0
+				? (
+						this.qualityRatings.reduce((a, b) => a + b, 0) /
+						this.qualityRatings.length
+				  ).toFixed(1)
+				: "-";
 
 		// Hide card display
 		document.getElementById("card-display")!.classList.add("d-none");
@@ -145,6 +161,7 @@ class StudyController {
 			this.cards.length.toString();
 		document.getElementById("summary-time")!.textContent =
 			this.formatTime(totalTime);
+		document.getElementById("summary-quality")!.textContent = avgQuality;
 	}
 
 	/**
@@ -165,6 +182,37 @@ class StudyController {
 		const mins = Math.floor(seconds / 60);
 		const secs = seconds % 60;
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
+	}
+
+	/**
+	 * Start the timer and update display every second
+	 */
+	private startTimer(): void {
+		this.updateTimerDisplay();
+		this.timerInterval = window.setInterval(() => {
+			this.updateTimerDisplay();
+		}, 1000);
+	}
+
+	/**
+	 * Stop the timer
+	 */
+	private stopTimer(): void {
+		if (this.timerInterval !== null) {
+			clearInterval(this.timerInterval);
+			this.timerInterval = null;
+		}
+	}
+
+	/**
+	 * Update timer display
+	 */
+	private updateTimerDisplay(): void {
+		const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+		const timerDisplay = document.getElementById("timer-display");
+		if (timerDisplay) {
+			timerDisplay.innerHTML = `<i class="bi bi-clock"></i> ${this.formatTime(elapsed)}`;
+		}
 	}
 
 	/**
@@ -256,6 +304,12 @@ document.addEventListener("DOMContentLoaded", () => {
 				e.preventDefault();
 			}
 		});
+	}
+
+	// Auto-start study session
+	const deckId = parseInt(window.location.pathname.split('/')[2]);
+	if (deckId) {
+		startStudySession(deckId);
 	}
 
 	// Expose functions to global scope for HTML onclick handlers

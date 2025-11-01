@@ -53,6 +53,35 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Deck Modal -->
+<div class="modal fade" id="editDeckModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-deck-form">
+                    <input type="hidden" id="edit-deck-id">
+                    <div class="mb-3">
+                        <label for="edit-deck-title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="edit-deck-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-deck-description" class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" id="edit-deck-description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="update-deck-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
