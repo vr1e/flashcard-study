@@ -5,7 +5,8 @@
 	"scripts": {
 		"build": "tsc",
 		"watch": "tsc --watch",
-		"dev": "tsc --watch"
+		"dev": "tsc --watch",
+		"postinstall": "npm run build"
 	},
 	"keywords": [
 		"flashcards",

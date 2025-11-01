@@ -20,7 +20,7 @@ urlpatterns = [
     # ========================================================================
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('register/', views.index, name='register'),  # TODO: Implement registration view
+    path('register/', views.register, name='register'),
 
     # ========================================================================
     # Deck API Endpoints

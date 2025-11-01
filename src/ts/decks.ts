@@ -3,6 +3,11 @@
  * Handles deck listing, creation, editing, and deletion
  */
 
+import { api } from './api.js';
+
+// Bootstrap is loaded via CDN in the HTML
+declare const bootstrap: any;
+
 // ============================================================================
 // Deck Loading and Display
 // ============================================================================
@@ -15,8 +20,7 @@ async function loadDecks(): Promise<void> {
     if (!deckGrid) return;
 
     try {
-        const response = await api.getDecks();
-        const decks = response.decks;
+        const decks = await api.getDecks();
 
         if (decks.length === 0) {
             deckGrid.innerHTML = `
@@ -47,8 +51,6 @@ async function loadDecks(): Promise<void> {
  * Create HTML for a single deck card
  */
 function createDeckCard(deck: any): string {
-    const dueClass = deck.cards_due > 0 ? 'text-danger' : 'text-muted';
-
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card deck-card h-100">
@@ -111,22 +113,18 @@ function initDeckCreation(): void {
             createBtn.textContent = 'Creating...';
             createBtn.setAttribute('disabled', 'true');
 
-            const response = await api.createDeck(title, description);
+            await api.createDeck(title, description);
 
-            if (response.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('createDeckModal')!);
-                modal?.hide();
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createDeckModal')!);
+            modal?.hide();
 
-                // Reset form
-                titleInput.value = '';
-                descInput.value = '';
+            // Reset form
+            titleInput.value = '';
+            descInput.value = '';
 
-                // Reload decks
-                await loadDecks();
-            } else {
-                throw new Error(response.error?.message || 'Failed to create deck');
-            }
+            // Reload decks
+            await loadDecks();
         } catch (error) {
             console.error('Error creating deck:', error);
             alert('Failed to create deck. Please try again.');
@@ -150,13 +148,8 @@ async function deleteDeck(deckId: number, deckTitle: string): Promise<void> {
     }
 
     try {
-        const response = await api.deleteDeck(deckId);
-
-        if (response.success) {
-            await loadDecks();
-        } else {
-            throw new Error(response.error?.message || 'Failed to delete deck');
-        }
+        await api.deleteDeck(deckId);
+        await loadDecks();
     } catch (error) {
         console.error('Error deleting deck:', error);
         alert('Failed to delete deck. Please try again.');
@@ -181,5 +174,12 @@ function escapeHtml(text: string): string {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadDecks();
     initDeckCreation();
+
+    // Expose functions to global scope for HTML onclick handlers
+    (window as any).deleteDeck = deleteDeck;
 });
+
+// Make this file a module to avoid global scope conflicts
+export {};

@@ -28,13 +28,11 @@ class Deck(models.Model):
 
     def cards_due_count(self):
         """Count cards due for review."""
-        # TODO: Implement
-        pass
+        return self.cards.filter(next_review__lte=datetime.now()).count()
 
     def total_cards(self):
         """Return total number of cards in deck."""
-        # TODO: Implement
-        pass
+        return self.cards.count()
 
 
 class Card(models.Model):
@@ -58,8 +56,7 @@ class Card(models.Model):
 
     def is_due(self):
         """Check if card is due for review."""
-        # TODO: Implement
-        pass
+        return self.next_review <= datetime.now()
 
 
 class StudySession(models.Model):
