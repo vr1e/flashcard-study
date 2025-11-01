@@ -44,7 +44,9 @@ yarn-error.*
 # TypeScript
 *.tsbuildinfo
 dist/
-static/js/  # Compiled JavaScript from src/ts/
+
+# Compiled JavaScript from src/ts/
+static/js/
 
 # Environment files
 .env

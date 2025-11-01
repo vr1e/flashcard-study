@@ -278,10 +278,10 @@ function formatSeconds(seconds: number): string {
 // Initialization
 // ============================================================================
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Expose functions to global scope for HTML
-    (window as any).loadStatistics = loadStatistics;
-    (window as any).initializeCharts = initializeCharts;
+    initializeCharts();
+    loadStatistics();
 });
 
 // Make this file a module to avoid global scope conflicts
