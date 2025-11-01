@@ -123,8 +123,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/api.js' %}"></script>
-<script src="{% static 'js/cards.js' %}"></script>
+<script type="module" src="{% static 'js/api.js' %}"></script>
+<script type="module" src="{% static 'js/cards.js' %}"></script>
 <script>
     // Get deck ID from URL
     const deckId = parseInt(window.location.pathname.split('/')[2]);

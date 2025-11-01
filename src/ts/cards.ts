@@ -3,6 +3,11 @@
  * Handles card CRUD operations within decks
  */
 
+import { api } from './api.js';
+
+// Bootstrap is loaded via CDN in the HTML
+declare const bootstrap: any;
+
 // ============================================================================
 // Deck Details Loading
 // ============================================================================
@@ -12,8 +17,7 @@
  */
 async function loadDeckDetails(deckId: number): Promise<void> {
     try {
-        const response = await api.getDeck(deckId);
-        const deck = response.deck;
+        const deck = await api.getDeck(deckId);
 
         // Update page elements
         document.getElementById('deck-title')!.textContent = deck.title;
@@ -48,8 +52,7 @@ async function loadCards(deckId: number): Promise<void> {
     if (!cardsList) return;
 
     try {
-        const response = await api.getCards(deckId);
-        const cards = response.cards;
+        const cards = await api.getCards(deckId);
 
         if (cards.length === 0) {
             cardsList.innerHTML = `
@@ -140,25 +143,21 @@ function initCardCreation(deckId: number): void {
             createBtn.textContent = 'Adding...';
             createBtn.setAttribute('disabled', 'true');
 
-            const response = await api.createCard(deckId, front, back);
+            await api.createCard(deckId, front, back);
 
-            if (response.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('createCardModal')!);
-                modal?.hide();
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createCardModal')!);
+            modal?.hide();
 
-                // Reset form
-                frontInput.value = '';
-                backInput.value = '';
+            // Reset form
+            frontInput.value = '';
+            backInput.value = '';
 
-                // Reload cards and deck details
-                await Promise.all([
-                    loadCards(deckId),
-                    loadDeckDetails(deckId)
-                ]);
-            } else {
-                throw new Error(response.error?.message || 'Failed to create card');
-            }
+            // Reload cards and deck details
+            await Promise.all([
+                loadCards(deckId),
+                loadDeckDetails(deckId)
+            ]);
         } catch (error) {
             console.error('Error creating card:', error);
             alert('Failed to create card. Please try again.');
@@ -210,16 +209,12 @@ function initCardEditing(deckId: number): void {
             updateBtn.textContent = 'Saving...';
             updateBtn.setAttribute('disabled', 'true');
 
-            const response = await api.updateCard(cardId, front, back);
+            await api.updateCard(cardId, front, back);
 
-            if (response.success) {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editCardModal')!);
-                modal?.hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editCardModal')!);
+            modal?.hide();
 
-                await loadCards(deckId);
-            } else {
-                throw new Error(response.error?.message || 'Failed to update card');
-            }
+            await loadCards(deckId);
         } catch (error) {
             console.error('Error updating card:', error);
             alert('Failed to update card. Please try again.');
@@ -243,16 +238,12 @@ async function deleteCard(cardId: number, deckId: number): Promise<void> {
     }
 
     try {
-        const response = await api.deleteCard(cardId);
+        await api.deleteCard(cardId);
 
-        if (response.success) {
-            await Promise.all([
-                loadCards(deckId),
-                loadDeckDetails(deckId)
-            ]);
-        } else {
-            throw new Error(response.error?.message || 'Failed to delete card');
-        }
+        await Promise.all([
+            loadCards(deckId),
+            loadDeckDetails(deckId)
+        ]);
     } catch (error) {
         console.error('Error deleting card:', error);
         alert('Failed to delete card. Please try again.');
@@ -290,4 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initCardCreation(deckId);
         initCardEditing(deckId);
     }
+
+    // Expose functions to global scope for HTML onclick handlers
+    (window as any).editCard = editCard;
+    (window as any).deleteCard = deleteCard;
 });
+
+// Make this file a module to avoid global scope conflicts
+export {};

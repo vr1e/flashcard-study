@@ -3,6 +3,11 @@
  * Handles data visualization and analytics using Chart.js
  */
 
+import { api } from './api.js';
+
+// Chart.js is loaded via CDN in the HTML
+declare const Chart: any;
+
 // ============================================================================
 // Chart Instances
 // ============================================================================
@@ -151,7 +156,7 @@ function initializeCharts(): void {
 /**
  * Update cards due chart
  */
-function updateCardsDueChart(stats: any): void {
+function updateCardsDueChart(_stats: any): void {
     // TODO: Implement with real data from stats
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const data = [12, 15, 8, 10, 20, 5, 3]; // Placeholder
@@ -180,7 +185,7 @@ function updateStudyActivityChart(stats: any): void {
 /**
  * Update deck quality chart
  */
-function updateDeckQualityChart(stats: any): void {
+function updateDeckQualityChart(_stats: any): void {
     // TODO: Implement with real deck-specific data
     const labels = ['Deck 1', 'Deck 2', 'Deck 3']; // Placeholder
     const data = [4.2, 3.8, 4.5]; // Placeholder
@@ -193,7 +198,7 @@ function updateDeckQualityChart(stats: any): void {
 /**
  * Update quality distribution chart
  */
-function updateQualityDistributionChart(stats: any): void {
+function updateQualityDistributionChart(_stats: any): void {
     // TODO: Implement with real quality distribution data
     const data = [5, 10, 15, 30, 25, 15]; // Placeholder
 
@@ -268,3 +273,16 @@ function formatSeconds(seconds: number): string {
 
     return `${mins}m ${secs}s`;
 }
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Expose functions to global scope for HTML
+    (window as any).loadStatistics = loadStatistics;
+    (window as any).initializeCharts = initializeCharts;
+});
+
+// Make this file a module to avoid global scope conflicts
+export {};

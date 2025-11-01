@@ -44,6 +44,7 @@
 ---
 
 **Tips for writing a good RFC:**
+
 - Write for clarity, not completeness
 - Use code examples to make concepts concrete
 - Focus on the "why" behind decisions

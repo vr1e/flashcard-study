@@ -75,8 +75,7 @@ def get_due_cards(deck):
     Returns:
         QuerySet of Card instances due for review
     """
-    # TODO: Implement
-    pass
+    return deck.cards.filter(next_review__lte=datetime.now()).order_by('next_review')
 
 
 def get_study_stats(user, deck=None):
@@ -95,5 +94,41 @@ def get_study_stats(user, deck=None):
         - cards_due_today
         - etc.
     """
-    # TODO: Implement
-    pass
+    from .models import Review, Card, Deck
+    from django.db.models import Avg, Count
+
+    # Filter reviews by deck if specified
+    if deck:
+        reviews = Review.objects.filter(card__deck=deck)
+        cards = Card.objects.filter(deck=deck)
+        decks_count = 1
+    else:
+        reviews = Review.objects.filter(session__user=user)
+        cards = Card.objects.filter(deck__user=user)
+        decks_count = Deck.objects.filter(user=user).count()
+
+    # Basic statistics
+    total_reviews = reviews.count()
+    total_cards = cards.count()
+
+    # Average quality
+    avg_quality_result = reviews.aggregate(Avg('quality'))
+    average_quality = round(avg_quality_result['quality__avg'] or 0, 2)
+
+    # Cards due today
+    cards_due_today = cards.filter(next_review__lte=datetime.now()).count()
+
+    # Study streak (simplified: check if user studied in last 24h)
+    from datetime import timedelta
+    yesterday = datetime.now() - timedelta(days=1)
+    studied_recently = reviews.filter(reviewed_at__gte=yesterday).exists()
+    study_streak = 1 if studied_recently else 0
+
+    return {
+        'total_reviews': total_reviews,
+        'total_cards': total_cards,
+        'average_quality': average_quality,
+        'cards_due_today': cards_due_today,
+        'study_streak': study_streak,
+        'decks_count': decks_count,
+    }

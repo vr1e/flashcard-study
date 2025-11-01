@@ -56,12 +56,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/api.js' %}"></script>
-<script src="{% static 'js/decks.js' %}"></script>
-<script>
-    // Initialize deck management when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        loadDecks();
-    });
-</script>
+<script type="module" src="{% static 'js/api.js' %}"></script>
+<script type="module" src="{% static 'js/decks.js' %}"></script>
 {% endblock %}

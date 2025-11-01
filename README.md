@@ -31,16 +31,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
-npm install
+npm install  # Automatically builds TypeScript
 
-# 4. Build TypeScript
-npm run build
-
-# 5. Setup database
+# 4. Setup database
 python manage.py migrate
 python manage.py createsuperuser
 
-# 6. Run the server
+# 5. Run the server
 python manage.py runserver
 ```
 
@@ -79,10 +76,15 @@ flashcard-study/
 ├── flashcards/          # Django app (models, views, business logic)
 ├── templates/           # HTML templates
 ├── src/ts/              # TypeScript source files
-├── static/              # CSS, compiled JS, images
+├── static/
+│   ├── css/             # Stylesheets (source controlled)
+│   ├── images/          # Images (source controlled)
+│   └── js/              # Compiled JavaScript (auto-generated, not in git)
 ├── docs/                # Technical documentation & RFCs
 └── manage.py            # Django management script
 ```
+
+**Note**: The `static/js/` directory is automatically generated from TypeScript source. It's git-ignored and rebuilt on `npm install`.
 
 ## 🛠️ Technology Stack
 

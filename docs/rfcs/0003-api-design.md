@@ -1,6 +1,7 @@
 # RFC 0003: API Design
 
 ## Metadata
+
 - **RFC Number**: 0003
 - **Title**: RESTful API Endpoints
 - **Author**: Development Team
@@ -9,22 +10,28 @@
 - **Last Updated**: 2024-10-25
 
 ## Summary
+
 Define a RESTful JSON API for managing decks, cards, study sessions, and statistics with consistent structure, error handling, and authentication.
 
 ## Motivation
+
 **Why are we doing this?**
 
 A well-designed API is crucial for:
+
 - **Frontend integration**: TypeScript code needs predictable responses
 - **Future expansion**: Mobile app, browser extension, or third-party integrations
 - **Debugging**: Clear error messages and consistent patterns
 - **Maintainability**: Documented contracts between frontend/backend
 
 ## Proposed Solution
+
 **What are we building and how?**
 
 ### Overview
+
 RESTful JSON API following these principles:
+
 - **Resource-based URLs**: `/api/decks/`, `/api/cards/{id}/`
 - **HTTP verbs**: GET (read), POST (create), PUT/PATCH (update), DELETE (delete)
 - **JSON format**: All requests/responses in JSON
@@ -202,18 +209,20 @@ Response: {
 ### Error Handling
 
 #### Standard Error Response
+
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "DECK_NOT_FOUND",
-    "message": "Deck with id 999 does not exist",
-    "details": {}
-  }
+	"success": false,
+	"error": {
+		"code": "DECK_NOT_FOUND",
+		"message": "Deck with id 999 does not exist",
+		"details": {}
+	}
 }
 ```
 
 #### HTTP Status Codes
+
 - **200 OK**: Successful GET/PUT
 - **201 Created**: Successful POST
 - **204 No Content**: Successful DELETE
@@ -224,6 +233,7 @@ Response: {
 - **500 Internal Server Error**: Server error
 
 #### Common Error Codes
+
 ```python
 ERROR_CODES = {
     'DECK_NOT_FOUND': 'Deck does not exist or access denied',
@@ -237,10 +247,12 @@ ERROR_CODES = {
 ### Authentication
 
 All API endpoints require authentication except:
+
 - Login/logout endpoints
 - Registration endpoint
 
 **Method**: Django session-based authentication
+
 - Frontend sends credentials to `/login/`
 - Django sets session cookie
 - Subsequent API requests include session cookie
@@ -249,6 +261,7 @@ All API endpoints require authentication except:
 ### Code Examples
 
 #### Django View Template
+
 ```python
 @login_required
 @require_http_methods(["POST"])
@@ -298,56 +311,60 @@ def deck_create(request):
 ```
 
 #### TypeScript API Client
+
 ```typescript
 class FlashcardAPI {
-  private baseURL = '/api';
+	private baseURL = "/api";
 
-  async getDecks(): Promise<Deck[]> {
-    const response = await fetch(`${this.baseURL}/decks/`);
-    const data = await response.json();
-    return data.decks;
-  }
+	async getDecks(): Promise<Deck[]> {
+		const response = await fetch(`${this.baseURL}/decks/`);
+		const data = await response.json();
+		return data.decks;
+	}
 
-  async createDeck(title: string, description: string): Promise<Deck> {
-    const response = await fetch(`${this.baseURL}/decks/create/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': this.getCsrfToken()
-      },
-      body: JSON.stringify({ title, description })
-    });
+	async createDeck(title: string, description: string): Promise<Deck> {
+		const response = await fetch(`${this.baseURL}/decks/create/`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-CSRFToken": this.getCsrfToken(),
+			},
+			body: JSON.stringify({ title, description }),
+		});
 
-    const data = await response.json();
+		const data = await response.json();
 
-    if (!data.success) {
-      throw new Error(data.error.message);
-    }
+		if (!data.success) {
+			throw new Error(data.error.message);
+		}
 
-    return data.deck;
-  }
+		return data.deck;
+	}
 
-  private getCsrfToken(): string {
-    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-  }
+	private getCsrfToken(): string {
+		return document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+	}
 }
 ```
 
 ## Alternatives Considered
 
 ### Alternative 1: GraphQL
+
 - **Description**: Use GraphQL instead of REST
 - **Pros**: Flexible queries, single endpoint, type safety
 - **Cons**: More complex, requires additional dependencies, overkill for simple CRUD
 - **Why not chosen**: REST is simpler and sufficient for this project
 
 ### Alternative 2: Django REST Framework (DRF)
+
 - **Description**: Use DRF for API serialization and views
 - **Pros**: Built-in serializers, viewsets, automatic documentation
 - **Cons**: Adds dependency, more abstraction, learning curve
 - **Why not chosen**: Hand-written views are more transparent for educational purposes
 
 ### Alternative 3: Token Authentication (JWT)
+
 - **Description**: Use JWT tokens instead of session auth
 - **Pros**: Stateless, works better for mobile apps
 - **Cons**: More complex, requires token refresh logic, session auth is Django default
@@ -356,13 +373,16 @@ class FlashcardAPI {
 ## Implementation Notes
 
 ### Dependencies
+
 - No external packages (using built-in Django JSON responses)
 - CSRF middleware (already in Django)
 
 ### Migration Strategy
+
 - N/A - New API
 
 ### Testing Approach
+
 ```python
 # Django tests
 class APITestCase(TestCase):
@@ -384,12 +404,14 @@ class APITestCase(TestCase):
 ```
 
 ### Performance Considerations
+
 - Use `select_related()` to avoid N+1 queries
 - Cache deck statistics (cards_due_count)
 - Add database indexes on frequently queried fields
 - Paginate large lists (if needed)
 
 ### Security Considerations
+
 - **Authorization**: Users can only access their own resources
 - **CSRF protection**: Required for all mutating requests
 - **Input validation**: Sanitize all user input
@@ -397,16 +419,19 @@ class APITestCase(TestCase):
 - **Rate limiting**: Consider for production (optional)
 
 ## Timeline
+
 - **Estimated Effort**: 2-3 days (in parallel with frontend)
 - **Target Completion**: After models are complete
 
 ## Open Questions
+
 - [ ] Do we need pagination for large card lists?
 - [ ] Should we version the API (/api/v1/)?
 - [ ] Do we need bulk operations (create multiple cards at once)?
 - [ ] Should we add search/filter endpoints?
 
 ## References
+
 - [REST API Best Practices](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)
 - [Django JsonResponse](https://docs.djangoproject.com/en/4.2/ref/request-response/#jsonresponse-objects)
 - [HTTP Status Codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status)

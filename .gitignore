@@ -6,6 +6,20 @@
 __pycache__/
 *.pyc
 
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# Python package builds
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+
 # Virtual Environment
 .venv/
 venv/
@@ -30,6 +44,7 @@ yarn-error.*
 # TypeScript
 *.tsbuildinfo
 dist/
+static/js/  # Compiled JavaScript from src/ts/
 
 # Environment files
 .env
