@@ -5,8 +5,8 @@ A web-based flashcard application with **spaced repetition** (SM-2 algorithm) fo
 ## ✨ Features
 
 - 🎯 **Smart Scheduling** - SM-2 algorithm optimizes when you review cards
-- 📚 **Deck Organization** - Group flashcards into custom decks
-- 📊 **Progress Tracking** - Visualize your learning with charts and statistics
+- 📚 **Deck Organization** - Create, edit, and manage flashcard decks
+- 📊 **Progress Tracking** - Real-time timer and average quality metrics
 - 🎨 **Interactive Study** - Card flipping animations and keyboard shortcuts
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile
 - 🔐 **Secure & Private** - User authentication keeps your study data safe

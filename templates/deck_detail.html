@@ -31,12 +31,8 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <span class="badge bg-info">
-                        <span id="cards-due-count">0</span> cards due
-                    </span>
-                    <span class="badge bg-secondary">
-                        <span id="total-cards-count">0</span> total cards
-                    </span>
+                    <span class="badge bg-info" id="cards-due-badge">0 cards due</span>
+                    <span class="badge bg-secondary" id="total-cards-badge">0 cards</span>
                 </div>
             </div>
         </div>
@@ -125,14 +121,4 @@
 {% block extra_js %}
 <script type="module" src="{% static 'js/api.js' %}"></script>
 <script type="module" src="{% static 'js/cards.js' %}"></script>
-<script>
-    // Get deck ID from URL
-    const deckId = parseInt(window.location.pathname.split('/')[2]);
-
-    // Initialize when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        loadDeckDetails(deckId);
-        loadCards(deckId);
-    });
-</script>
 {% endblock %}

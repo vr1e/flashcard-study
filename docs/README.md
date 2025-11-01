@@ -8,10 +8,11 @@ This directory contains technical documentation for the Flashcard Study Tool pro
 ### RFCs (Request for Comments)
 The `rfcs/` directory contains technical design documents that describe features, architecture decisions, and implementation approaches.
 
-#### Active RFCs
-- [RFC 0001: Spaced Repetition Algorithm](rfcs/0001-spaced-repetition-algorithm.md) - SM-2 algorithm implementation
-- [RFC 0002: Study Session Flow](rfcs/0002-study-session-flow.md) - Interactive study session design
-- [RFC 0003: API Design](rfcs/0003-api-design.md) - RESTful API endpoints
+#### RFCs
+- [RFC 0001: Spaced Repetition Algorithm](rfcs/0001-spaced-repetition-algorithm.md) - SM-2 algorithm (✅ Implemented)
+- [RFC 0002: Study Session Flow](rfcs/0002-study-session-flow.md) - Interactive study sessions (✅ Implemented)
+- [RFC 0003: API Design](rfcs/0003-api-design.md) - RESTful API endpoints (✅ Implemented)
+- [RFC 0004: Testing Strategy](rfcs/0004-testing-strategy.md) - Automated testing approach (Draft)
 
 #### RFC Process
 1. Copy `rfcs/0000-rfc-template.md` to create a new RFC

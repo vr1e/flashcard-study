@@ -5,9 +5,9 @@
 - **RFC Number**: 0002
 - **Title**: Interactive Study Session Design
 - **Author**: Development Team
-- **Status**: Draft
+- **Status**: Implemented
 - **Created**: 2024-10-25
-- **Last Updated**: 2024-10-25
+- **Last Updated**: 2025-11-01
 
 ## Summary
 
@@ -341,3 +341,99 @@ describe("StudySession", () => {
 - [Anki Study Interface](https://docs.ankiweb.net/studying.html)
 - [CSS Flip Animation Tutorial](https://www.w3schools.com/howto/howto_css_flip_card.asp)
 - [Bootstrap 5 Modals](https://getbootstrap.com/docs/5.0/components/modal/)
+
+## Implementation Notes (Added 2025-11-01)
+
+### Actual Implementation vs. Original Design
+
+The following features were implemented as additional enhancements beyond the original RFC:
+
+#### 1. Auto-Start Behavior
+**Original Design**: User clicks "Study Now" button to start session
+**Implemented**: Study session auto-starts when page loads
+
+- Session initializes automatically via TypeScript `DOMContentLoaded` handler
+- No explicit button click required
+- Deck ID parsed from URL path
+- Improves UX by reducing clicks
+
+#### 2. Real-Time Timer Display
+**Added Feature**: Live timer showing elapsed time during study session
+
+- Timer displays at top of study interface: `<i class="bi bi-clock"></i> 0:00`
+- Updates every second using `setInterval()`
+- Format: MM:SS (e.g., "0:45" for 45 seconds, "12:30" for 12 minutes 30 seconds)
+- Timer stops when session ends
+- Final time displayed in completion screen
+
+Implementation:
+```typescript
+private timerInterval: number | null = null;
+private sessionStartTime: number;
+
+private startTimer(): void {
+    this.updateTimerDisplay();
+    this.timerInterval = window.setInterval(() => {
+        this.updateTimerDisplay();
+    }, 1000);
+}
+
+private stopTimer(): void {
+    if (this.timerInterval !== null) {
+        clearInterval(this.timerInterval);
+        this.timerInterval = null;
+    }
+}
+
+private updateTimerDisplay(): void {
+    const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+    const timerDisplay = document.getElementById("timer-display");
+    if (timerDisplay) {
+        timerDisplay.innerHTML = `<i class="bi bi-clock"></i> ${this.formatTime(elapsed)}`;
+    }
+}
+```
+
+#### 3. Average Quality Calculation
+**Added Feature**: Calculate and display average quality rating at session end
+
+- Tracks all quality ratings in array: `private qualityRatings: number[] = []`
+- Calculates average on session completion
+- Displays with 1 decimal place (e.g., "3.8")
+- Shows "-" if no cards were rated (edge case: user quits without rating)
+
+Implementation:
+```typescript
+private qualityRatings: number[] = [];
+
+async submitRating(quality: number): Promise<void> {
+    // ... API call ...
+    this.qualityRatings.push(quality);
+    this.nextCard();
+}
+
+endSession(): void {
+    this.stopTimer();
+    const avgQuality =
+        this.qualityRatings.length > 0
+            ? (
+                  this.qualityRatings.reduce((a, b) => a + b, 0) /
+                  this.qualityRatings.length
+              ).toFixed(1)
+            : "-";
+
+    document.getElementById("summary-quality")!.textContent = avgQuality;
+}
+```
+
+Completion screen now shows three metrics:
+- **Cards Studied**: Total count
+- **Time Spent**: Elapsed time in MM:SS
+- **Average Quality**: Mean of all ratings (1 decimal)
+
+### Testing
+All features verified via Playwright browser automation testing on 2025-11-01:
+- Timer updates correctly every second ✅
+- Average quality calculates accurately ✅
+- Auto-start works without user interaction ✅
+- Keyboard shortcuts (Space, 0-5, Esc) functional ✅

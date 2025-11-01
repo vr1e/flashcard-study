@@ -5,9 +5,9 @@
 - **RFC Number**: 0003
 - **Title**: RESTful API Endpoints
 - **Author**: Development Team
-- **Status**: Draft
+- **Status**: Implemented
 - **Created**: 2024-10-25
-- **Last Updated**: 2024-10-25
+- **Last Updated**: 2025-11-01
 
 ## Summary
 
@@ -434,4 +434,191 @@ class APITestCase(TestCase):
 
 - [REST API Best Practices](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)
 - [Django JsonResponse](https://docs.djangoproject.com/en/4.2/ref/request-response/#jsonresponse-objects)
-- [HTTP Status Codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status)
+- [HTTP Status Codes](https://developer.mozilla.org/en/docs/Web/HTTP/Status)
+
+## Implementation Notes (Added 2025-11-01)
+
+### Actual API Response Structure
+
+All backend responses follow a consistent wrapper format:
+
+```json
+{
+  "success": true,
+  "data": <actual_data>
+}
+```
+
+Or for errors:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error message"
+  }
+}
+```
+
+### Frontend Response Unwrapping
+
+The TypeScript API client automatically unwraps responses in the `fetch()` method:
+
+```typescript
+class FlashcardAPI {
+    private async fetch<T>(url: string, options?: RequestInit): Promise<T> {
+        const response = await window.fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.csrfToken,
+                ...options?.headers,
+            },
+        });
+
+        const json: ApiResponse<any> = await response.json();
+
+        if (!json.success) {
+            throw new ApiError(json.error || {
+                code: 'UNKNOWN_ERROR',
+                message: 'An unexpected error occurred'
+            });
+        }
+
+        return json.data as T;  // ← Unwrap and return just the data
+    }
+}
+```
+
+**Result**: All API methods return clean, unwrapped data types:
+
+```typescript
+// Method signature
+async getDecks(): Promise<Deck[]>
+
+// Usage (no .data access needed)
+const decks = await api.getDecks();  // Returns Deck[] directly
+```
+
+### Corrected Response Examples
+
+#### GET /api/decks/
+**Backend Returns**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "Spanish Vocabulary",
+      "description": "Common phrases",
+      "total_cards": 50,
+      "cards_due": 12,
+      "created_at": "2024-10-25T10:00:00Z",
+      "updated_at": "2024-10-25T14:30:00Z"
+    }
+  ]
+}
+```
+
+**Frontend Receives** (after unwrapping):
+```typescript
+const decks: Deck[] = await api.getDecks();
+// decks is directly the array, not wrapped
+```
+
+#### POST /api/decks/create/
+**Backend Returns**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "title": "New Deck",
+    "description": "Optional description",
+    "total_cards": 0,
+    "cards_due": 0,
+    "created_at": "2024-10-25T15:00:00Z",
+    "updated_at": "2024-10-25T15:00:00Z"
+  }
+}
+```
+
+**Frontend Receives** (after unwrapping):
+```typescript
+const deck: Deck = await api.createDeck(title, description);
+// deck is the object directly
+```
+
+### Error Handling
+
+Errors are thrown as `ApiError` exceptions:
+
+```typescript
+class ApiError extends Error {
+    code: string;
+    details?: any;
+
+    constructor(error: { code: string; message: string; details?: any }) {
+        super(error.message);
+        this.name = 'ApiError';
+        this.code = error.code;
+        this.details = error.details;
+    }
+}
+```
+
+**Usage**:
+```typescript
+try {
+    const decks = await api.getDecks();
+} catch (error) {
+    if (error instanceof ApiError) {
+        console.error(`API Error [${error.code}]: ${error.message}`);
+    }
+}
+```
+
+### Benefits of This Approach
+
+1. **Clean Controller Code**: No need to check `success` flag or access `.data` in every controller
+2. **Type Safety**: Controllers work with clean types (e.g., `Deck[]`, not `ApiResponse<Deck[]>`)
+3. **Centralized Error Handling**: All API errors go through the same path
+4. **Consistent Backend**: Backend maintains clean, documented API structure
+5. **Easy Debugging**: Can add logging/retry logic in one place (the `fetch()` method)
+
+### Backend Implementation
+
+All endpoints follow this pattern:
+
+```python
+@login_required
+def deck_list(request):
+    try:
+        decks = Deck.objects.filter(user=request.user)
+
+        data = [
+            {
+                'id': deck.id,
+                'title': deck.title,
+                'description': deck.description,
+                'total_cards': deck.total_cards(),
+                'cards_due': deck.cards_due_count(),
+                'created_at': deck.created_at.isoformat(),
+                'updated_at': deck.updated_at.isoformat()
+            }
+            for deck in decks
+        ]
+
+        return JsonResponse({'success': True, 'data': data})
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': {
+                'code': 'INTERNAL_ERROR',
+                'message': str(e)
+            }
+        }, status=500)
+```

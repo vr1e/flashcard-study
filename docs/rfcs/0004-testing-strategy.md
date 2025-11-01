@@ -274,3 +274,84 @@ This ensures timezone-aware datetimes for proper testing.
 6. Write API tests in `test_views.py`
 7. Fix timezone issue in `models.py`
 8. Run `pytest` and iterate until green
+
+---
+
+## E2E/UI Testing with Playwright (Added 2025-11-01)
+
+### What Was Tested
+
+Successfully used **Playwright browser automation** via Claude Code's MCP integration to test Phase 3 UI enhancements:
+
+**Features Verified** (2025-11-01):
+1. **Pluralization**: Deck/card counts show "1 card" vs "2 cards" correctly
+2. **Deck Editing**: Edit modal opens, pre-fills data, saves changes, refreshes UI
+3. **Study Timer**: Displays and updates every second (verified: 0:00 → 0:15 → 0:45)
+4. **Average Quality**: Calculates correctly (rating 4 → shows "4.0")
+
+### Playwright Benefits
+
+**Advantages over manual testing**:
+- **Reproducible**: Same test sequence every time
+- **Fast**: Automated clicks/navigation faster than manual
+- **Documentation**: Test actions serve as usage examples
+- **Real browser**: Tests actual DOM rendering, CSS, JavaScript
+- **Screenshot capable**: Can capture visual bugs
+
+**MCP Integration Features Used**:
+```typescript
+// Navigate to pages
+mcp__playwright__browser_navigate({ url: "http://localhost:8000/" })
+
+// Click elements
+mcp__playwright__browser_click({ element: "Add Card button", ref: "e44" })
+
+// Type in fields
+mcp__playwright__browser_type({
+    element: "Title textbox",
+    ref: "e59",
+    text: "Test Deck - Edited Title"
+})
+
+// Wait and verify updates
+mcp__playwright__browser_wait_for({ time: 3 })
+
+// Take screenshots
+mcp__playwright__browser_take_screenshot({ filename: "study-session.png" })
+```
+
+### Test Results
+
+**All tests passed** ✅:
+- No console errors
+- All features functional
+- UI updates correctly
+- State persists across navigation
+
+### Recommended Testing Strategy
+
+**Layered Approach**:
+1. **Unit tests** (pytest): SM-2 algorithm, model methods, API endpoints
+2. **Integration tests** (pytest): Complete workflows (deck → cards → study → stats)
+3. **E2E tests** (Playwright): User-facing features, UI interactions, visual regression
+
+**When to use Playwright**:
+- Testing JavaScript-heavy features (study session, timer, modals)
+- Verifying visual elements (animations, responsive design)
+- User flow testing (create deck → add card → study → complete)
+- Cross-browser compatibility (if needed)
+
+**When to use pytest**:
+- Backend logic (SM-2 algorithm, model methods)
+- API endpoints (request/response validation)
+- Database operations (CRUD, queries)
+- Business logic (statistics calculations)
+
+### Future Enhancements
+
+Consider adding to testing infrastructure:
+- **Playwright test suite**: Formalize E2E tests as actual test files
+- **CI/CD integration**: Run Playwright tests on PR
+- **Visual regression**: Screenshot comparison testing
+- **Performance testing**: Load testing for large decks
+- **Mobile testing**: Responsive design verification
