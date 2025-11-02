@@ -100,27 +100,33 @@ jobs:
           PA_USERNAME: ${{ secrets.PA_USERNAME }}
           PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
         run: |
-          echo "Creating bash console to run deployment..."
+          echo "Creating bash console..."
 
           response=$(curl -s -X POST \
             "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
             -H "Authorization: Token ${PA_API_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "executable": "bash",
-              "arguments": ["/home/'${PA_USERNAME}'/deploy.sh"]
-            }')
+            -d '{"executable": "bash"}')
 
           console_id=$(echo "$response" | jq -r '.id // empty')
 
-          if [ -z "$console_id" ]; then
+          if [ -z "$console_id" ] || [ "$console_id" = "null" ]; then
             echo "Failed to create console. Response:"
             echo "$response"
             exit 1
           fi
 
-          echo "Deployment script started in console: $console_id"
-          echo "Check PythonAnywhere console output for deployment logs"
+          echo "Created console: $console_id"
+          echo "Sending deployment command..."
+
+          curl -s -X POST \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${console_id}/send_input/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"input\": \"/home/${PA_USERNAME}/deploy.sh\\n\"}" \
+            > /dev/null
+
+          echo "Deployment script triggered"
 
       - name: Reload web app
         env:
