@@ -10,6 +10,25 @@ This guide covers deploying the Flashcard Study Tool to PythonAnywhere. The appl
 - Code repository accessible via Git (GitHub, GitLab, etc.)
 - All production fixes from RFC 0005 applied
 
+## Version Requirements
+
+### Python: 3.11 (Recommended)
+
+- **Django 4.2 LTS**: Compatible with Python 3.8-3.12
+- **Python 3.11**: Active support until October 2027
+- **Alternatives**: Python 3.10 or 3.12 also supported
+- **PythonAnywhere**: Requires "Innit" system image for Python 3.10+
+
+**Why 3.11?** Excellent performance improvements, long support timeline, and fully compatible with Django 4.2 LTS.
+
+### Node.js: v22.20.0 LTS (Recommended)
+
+- **Current LTS**: Node.js 22.x ("Jod")
+- **Support**: Until April 2027
+- **Alternative**: Node.js 20.x (v20.19.5) supported until April 2026
+
+**Why 22.x?** Latest LTS with longer support timeline and active maintenance.
+
 ## Deployment Steps
 
 ### 1. Clone Repository
@@ -27,7 +46,7 @@ cd flashcard-study
 Create and activate a Python virtual environment:
 
 ```bash
-python3.9 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -39,9 +58,9 @@ PythonAnywhere doesn't have Node.js pre-installed. Install it manually:
 ```bash
 # Download and install Node.js (LTS version)
 cd ~
-wget https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz
-tar -xf node-v20.11.0-linux-x64.tar.xz
-mv node-v20.11.0-linux-x64 nodejs
+wget https://nodejs.org/dist/v22.20.0/node-v22.20.0-linux-x64.tar.xz
+tar -xf node-v22.20.0-linux-x64.tar.xz
+mv node-v22.20.0-linux-x64 nodejs
 
 # Add to PATH
 echo 'export PATH=$HOME/nodejs/bin:$PATH' >> ~/.bashrc
@@ -128,16 +147,14 @@ if path not in sys.path:
 # Set Django settings module
 os.environ['DJANGO_SETTINGS_MODULE'] = 'flashcard_project.settings'
 
-# Load environment variables from .env
-from dotenv import load_dotenv
-load_dotenv(os.path.join(path, '.env'))
-
 # Get Django WSGI application
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
 ```
 
 **Note**: Replace `yourusername` with your actual PythonAnywhere username.
+
+**Important**: The `.env` file is automatically loaded by `python-decouple` when Django starts, so no manual loading is needed in the WSGI file.
 
 ### 9. Configure Static Files Mapping
 
@@ -150,9 +167,17 @@ In PythonAnywhere Web tab → Static files section, add:
 ### 10. Set Python Version
 
 In PythonAnywhere Web tab:
-- Select **Python 3.9** or later
+- Select **Python 3.11** or later
+- **Note**: Requires PythonAnywhere "Innit" system image for Python 3.10+
 
-### 11. Reload Application
+### 11. Enable Force HTTPS
+
+In PythonAnywhere Web tab → Security section:
+- Set **Force HTTPS** to **Enabled**
+- This ensures all traffic is encrypted (redirects http → https)
+- Leave **Password protection** disabled (Django handles authentication)
+
+### 12. Reload Application
 
 Click the **Reload** button on the Web tab.
 
@@ -301,4 +326,4 @@ Whitenoise is already configured for gzip compression of static files. No additi
 
 ---
 
-**Last Updated**: 2025-11-02
+**Last Updated**: 2025-11-02 (Version requirements and WSGI configuration updated)
