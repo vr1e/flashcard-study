@@ -10,7 +10,8 @@ Models:
 
 from django.db import models
 from django.contrib.auth.models import User
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import timedelta
 
 
 class Deck(models.Model):
@@ -28,7 +29,7 @@ class Deck(models.Model):
 
     def cards_due_count(self):
         """Count cards due for review."""
-        return self.cards.filter(next_review__lte=datetime.now()).count()
+        return self.cards.filter(next_review__lte=timezone.now()).count()
 
     def total_cards(self):
         """Return total number of cards in deck."""
@@ -49,14 +50,14 @@ class Card(models.Model):
     ease_factor = models.FloatField(default=2.5)  # How "easy" the card is
     interval = models.IntegerField(default=1)      # Days until next review
     repetitions = models.IntegerField(default=0)   # Successful reviews in a row
-    next_review = models.DateTimeField(default=datetime.now)
+    next_review = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.front[:50]}..."
 
     def is_due(self):
         """Check if card is due for review."""
-        return self.next_review <= datetime.now()
+        return self.next_review <= timezone.now()
 
 
 class StudySession(models.Model):

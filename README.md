@@ -94,6 +94,7 @@ flashcard-study/
 
 ## 📚 Documentation
 
+- **Deployment Guide**: `DEPLOYMENT.md` (PythonAnywhere setup)
 - **API Reference**: `docs/rfcs/0003-api-design.md`
 - **Algorithm Details**: `docs/rfcs/0001-spaced-repetition-algorithm.md`
 - **Study Flow**: `docs/rfcs/0002-study-session-flow.md`

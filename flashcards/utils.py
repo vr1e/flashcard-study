@@ -6,7 +6,8 @@ Includes:
 - Helper functions for card scheduling
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 
 
 def calculate_next_review(card, quality):
@@ -60,7 +61,7 @@ def calculate_next_review(card, quality):
     )
 
     # Set next review date
-    card.next_review = datetime.now() + timedelta(days=card.interval)
+    card.next_review = timezone.now() + timedelta(days=card.interval)
 
     return card
 
@@ -75,7 +76,7 @@ def get_due_cards(deck):
     Returns:
         QuerySet of Card instances due for review
     """
-    return deck.cards.filter(next_review__lte=datetime.now()).order_by('next_review')
+    return deck.cards.filter(next_review__lte=timezone.now()).order_by('next_review')
 
 
 def get_study_stats(user, deck=None):
@@ -118,17 +119,17 @@ def get_study_stats(user, deck=None):
     average_quality = round(avg_quality_result['quality__avg'] or 0, 2)
 
     # Cards due today
-    cards_due_today = cards.filter(next_review__lte=datetime.now()).count()
+    cards_due_today = cards.filter(next_review__lte=timezone.now()).count()
 
     # Study streak (simplified: check if user studied in last 24h)
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = timezone.now() - timedelta(days=1)
     studied_recently = reviews.filter(reviewed_at__gte=yesterday).exists()
     study_streak_days = 1 if studied_recently else 0
 
     # Recent activity (last 7 days)
     recent_activity = []
     for i in range(7):
-        date = datetime.now() - timedelta(days=i)
+        date = timezone.now() - timedelta(days=i)
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
