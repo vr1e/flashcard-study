@@ -50,4 +50,12 @@ urlpatterns = [
     # ========================================================================
     path('api/stats/', views.user_stats, name='api_user_stats'),
     path('api/decks/<int:deck_id>/stats/', views.deck_stats, name='api_deck_stats'),
+
+    # ========================================================================
+    # Partnership API Endpoints
+    # ========================================================================
+    path('api/partnership/invite/', views.partnership_invite, name='api_partnership_invite'),
+    path('api/partnership/accept/', views.partnership_accept, name='api_partnership_accept'),
+    path('api/partnership/', views.partnership_get, name='api_partnership_get'),
+    path('api/partnership/dissolve/', views.partnership_dissolve, name='api_partnership_dissolve'),
 ]

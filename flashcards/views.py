@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 import json
 
-from .models import Deck, Card, StudySession, Review
+from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation
 
 
 # ============================================================================
@@ -571,3 +571,221 @@ def deck_stats(request, deck_id):
             'success': False,
             'error': {'code': 'NOT_FOUND', 'message': 'Deck not found'}
         }, status=404)
+
+
+# ============================================================================
+# Partnership API Endpoints
+# ============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def partnership_invite(request):
+    """
+    POST /api/partnership/invite/
+    Create a new partnership invitation.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
+    # Check if user already has active partnership
+    existing = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).exists()
+
+    if existing:
+        return JsonResponse({
+            'success': False,
+            'error': {
+                'code': 'ALREADY_PARTNERED',
+                'message': 'You already have an active partnership'
+            }
+        }, status=400)
+
+    # Create invitation
+    invitation = PartnershipInvitation.objects.create(
+        inviter=request.user
+    )
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'code': invitation.code,
+            'expires_at': invitation.expires_at.isoformat(),
+            'created_at': invitation.created_at.isoformat()
+        }
+    }, status=201)
+
+
+@login_required
+@require_http_methods(["POST"])
+def partnership_accept(request):
+    """
+    POST /api/partnership/accept/
+    Accept a partnership invitation.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').upper().strip()
+
+        if not code:
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'INVALID_INPUT', 'message': 'Invitation code is required'}
+            }, status=400)
+
+        # Find invitation
+        try:
+            invitation = PartnershipInvitation.objects.get(code=code)
+        except PartnershipInvitation.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_CODE',
+                    'message': 'Invitation code not found or expired'
+                }
+            }, status=404)
+
+        # Validate invitation
+        if not invitation.is_valid():
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'EXPIRED',
+                    'message': 'This invitation has expired'
+                }
+            }, status=400)
+
+        if invitation.inviter == request.user:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'SELF_INVITATION',
+                    'message': 'Cannot accept your own invitation'
+                }
+            }, status=400)
+
+        # Check if acceptor already has partnership
+        existing = Partnership.objects.filter(
+            Q(user_a=request.user) | Q(user_b=request.user),
+            is_active=True
+        ).exists()
+
+        if existing:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'ALREADY_PARTNERED',
+                    'message': 'You already have an active partnership'
+                }
+            }, status=400)
+
+        # Create partnership
+        partnership = Partnership.objects.create(
+            user_a=invitation.inviter,
+            user_b=request.user
+        )
+
+        # Mark invitation as accepted
+        invitation.accepted_by = request.user
+        invitation.accepted_at = timezone.now()
+        invitation.save()
+
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'partnership_id': partnership.id,
+                'partner': {
+                    'id': invitation.inviter.id,
+                    'username': invitation.inviter.username,
+                    'email': invitation.inviter.email
+                },
+                'created_at': partnership.created_at.isoformat()
+            }
+        }, status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': {'code': 'INVALID_JSON', 'message': 'Invalid JSON in request body'}
+        }, status=400)
+
+
+@login_required
+@require_http_methods(["GET"])
+def partnership_get(request):
+    """
+    GET /api/partnership/
+    Get current partnership information.
+    """
+    from django.db.models import Q
+
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    if not partnership:
+        return JsonResponse({
+            'success': True,
+            'data': None
+        })
+
+    partner = partnership.get_partner(request.user)
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'id': partnership.id,
+            'partner': {
+                'id': partner.id,
+                'username': partner.username,
+                'email': partner.email
+            },
+            'created_at': partnership.created_at.isoformat(),
+            'shared_decks_count': partnership.decks.count()
+        }
+    })
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def partnership_dissolve(request):
+    """
+    DELETE /api/partnership/
+    Dissolve current partnership.
+    """
+    from django.db.models import Q
+
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).first()
+
+    if not partnership:
+        return JsonResponse({
+            'success': False,
+            'error': {
+                'code': 'NO_PARTNERSHIP',
+                'message': 'No active partnership found'
+            }
+        }, status=404)
+
+    # Count affected decks
+    decks_count = partnership.decks.count()
+
+    # Soft delete partnership
+    partnership.is_active = False
+    partnership.save()
+
+    # Clear deck associations (decks remain, just not shared)
+    partnership.decks.clear()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Partnership dissolved',
+        'decks_affected': decks_count
+    })
