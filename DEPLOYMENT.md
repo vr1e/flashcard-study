@@ -84,6 +84,7 @@ npm run build
 This will generate JavaScript files in `static/js/` directory.
 
 **Important**: If you update TypeScript source files (`src/ts/`), you must rebuild:
+
 ```bash
 npm run build
 ```
@@ -160,19 +161,21 @@ application = get_wsgi_application()
 
 In PythonAnywhere Web tab → Static files section, add:
 
-| URL           | Directory                                              |
-|---------------|--------------------------------------------------------|
-| `/static/`    | `/home/yourusername/flashcard-study/static_collected/` |
+| URL        | Directory                                              |
+| ---------- | ------------------------------------------------------ |
+| `/static/` | `/home/yourusername/flashcard-study/static_collected/` |
 
 ### 10. Set Python Version
 
 In PythonAnywhere Web tab:
+
 - Select **Python 3.11** or later
 - **Note**: Requires PythonAnywhere "Innit" system image for Python 3.10+
 
 ### 11. Enable Force HTTPS
 
 In PythonAnywhere Web tab → Security section:
+
 - Set **Force HTTPS** to **Enabled**
 - This ensures all traffic is encrypted (redirects http → https)
 - Leave **Password protection** disabled (Django handles authentication)
@@ -186,20 +189,24 @@ Click the **Reload** button on the Web tab.
 ### Health Checks
 
 1. **Homepage loads**: Visit `https://yourusername.pythonanywhere.com/`
+
    - CSS and JavaScript should load correctly
    - No console errors in browser DevTools
 
 2. **Authentication works**:
+
    - Register new account or login
    - Logout functionality
 
 3. **Core workflow**:
+
    - Create a deck
    - Add flashcards to the deck
    - Start study session
    - View statistics
 
 4. **Admin panel**: Visit `https://yourusername.pythonanywhere.com/admin/`
+
    - Login with superuser credentials
    - Verify models are accessible
 
@@ -210,6 +217,7 @@ Click the **Reload** button on the Web tab.
 ### Check Logs
 
 If something goes wrong, check PythonAnywhere logs:
+
 - **Error log**: Web tab → Log files → Error log
 - **Server log**: Web tab → Log files → Server log
 
@@ -218,28 +226,33 @@ If something goes wrong, check PythonAnywhere logs:
 When you push code changes:
 
 1. **Pull latest code**:
+
    ```bash
    cd ~/flashcard-study
    git pull origin main
    ```
 
 2. **Rebuild TypeScript** (if frontend changed):
+
    ```bash
    npm run build
    ```
 
 3. **Install new dependencies** (if requirements.txt changed):
+
    ```bash
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
 4. **Run migrations** (if models changed):
+
    ```bash
    python manage.py migrate
    ```
 
 5. **Collect static files** (if static files changed):
+
    ```bash
    python manage.py collectstatic --noinput
    ```
@@ -251,6 +264,7 @@ When you push code changes:
 ### Issue: Static files not loading
 
 **Solution**:
+
 - Verify static files mapping in Web tab
 - Check `static_collected/` directory exists and has files
 - Run `python manage.py collectstatic --noinput` again
@@ -258,6 +272,7 @@ When you push code changes:
 ### Issue: "ModuleNotFoundError" for dependencies
 
 **Solution**:
+
 - Ensure virtual environment is activated
 - Reinstall dependencies: `pip install -r requirements.txt`
 - Check WSGI file activates the correct venv path
@@ -265,6 +280,7 @@ When you push code changes:
 ### Issue: Environment variables not loading
 
 **Solution**:
+
 - Verify `.env` file exists in project root
 - Check WSGI file has `load_dotenv()` call
 - Ensure `python-decouple` is installed: `pip list | grep decouple`
@@ -272,6 +288,7 @@ When you push code changes:
 ### Issue: JavaScript not working
 
 **Solution**:
+
 - Check browser console for errors
 - Verify `npm run build` completed successfully
 - Check `static/js/` directory has compiled `.js` files
@@ -280,6 +297,7 @@ When you push code changes:
 ### Issue: Database errors
 
 **Solution**:
+
 - Run `python manage.py migrate` to apply migrations
 - Check `db.sqlite3` file permissions
 - For PythonAnywhere, database should be in `/home/yourusername/flashcard-study/`
@@ -318,6 +336,40 @@ Whitenoise is already configured for gzip compression of static files. No additi
 - Monitor usage in Account tab
 - Consider upgrading if limits are reached
 
+## Automated Deployment (Optional)
+
+Automate deployments via GitHub Actions - just `git push origin main`.
+
+### Quick Setup (10 minutes)
+
+**1. Create deployment script on PythonAnywhere:**
+
+```bash
+nano ~/deploy.sh
+```
+
+Copy from `scripts/deploy.sh`, change `USERNAME`, then `chmod +x ~/deploy.sh`
+
+**2. Get API token:** PythonAnywhere → Account → API Token → Create
+
+**3. Add GitHub Secrets** (Settings → Secrets → Actions):
+
+- `PA_USERNAME` - PythonAnywhere username
+- `PA_API_TOKEN` - from step 2
+- `PA_DOMAIN` - e.g., `username.pythonanywhere.com`
+
+**4. Push to test:** Workflow is at `.github/workflows/deploy.yml`
+
+### Flow
+
+Push → Tests → TypeScript build → Upload JS → Deploy → Reload (~3-5 min)
+
+**Troubleshooting:** Check `~/flashcard-study/deployment.log` or Web tab → Error log
+
+See `docs/rfcs/0006-automated-deployment.md` for details.
+
+---
+
 ## Support
 
 - **PythonAnywhere Help**: https://help.pythonanywhere.com/
@@ -326,4 +378,4 @@ Whitenoise is already configured for gzip compression of static files. No additi
 
 ---
 
-**Last Updated**: 2025-11-02 (Version requirements and WSGI configuration updated)
+**Last Updated**: 2025-11-02 (Consolidated documentation)
