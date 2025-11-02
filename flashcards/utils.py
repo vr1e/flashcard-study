@@ -36,9 +36,6 @@ def calculate_next_review(card, quality):
         - If quality >= 3: Success, increase interval
         - Adjust ease_factor based on performance
     """
-    # TODO: Implement SM-2 algorithm
-    # Reference implementation in project specification
-
     if quality < 3:
         # Failed: reset repetitions, review tomorrow
         card.repetitions = 0
