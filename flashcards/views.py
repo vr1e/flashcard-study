@@ -25,10 +25,30 @@ from .models import Deck, Card, StudySession, Review, Partnership, PartnershipIn
 def index(request):
     """
     Dashboard/home page.
-    Shows all user's decks with due card counts.
+    Shows all user's decks (personal and shared) with due card counts.
     """
-    decks = Deck.objects.filter(user=request.user).order_by('-updated_at')
-    return render(request, 'index.html', {'decks': decks})
+    from django.db.models import Q
+
+    # Get user's partnership
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    # Personal decks
+    personal_decks = Deck.objects.filter(
+        user=request.user,
+        partnerships__isnull=True
+    ).order_by('-updated_at')
+
+    # Shared decks
+    shared_decks = partnership.decks.all().order_by('-updated_at') if partnership else []
+
+    return render(request, 'index.html', {
+        'personal_decks': personal_decks,
+        'shared_decks': shared_decks,
+        'partnership': partnership,
+    })
 
 
 @login_required
@@ -37,7 +57,13 @@ def deck_detail(request, deck_id):
     Deck detail page.
     Shows all cards in a deck with management options.
     """
-    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    deck = get_object_or_404(Deck, id=deck_id)
+
+    # Check permissions
+    if not deck.can_view(request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You do not have access to this deck")
+
     return render(request, 'deck_detail.html', {'deck': deck})
 
 
@@ -47,7 +73,13 @@ def study_view(request, deck_id):
     Study session page.
     Interactive card study interface.
     """
-    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    deck = get_object_or_404(Deck, id=deck_id)
+
+    # Check permissions
+    if not deck.can_view(request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You do not have access to this deck")
+
     return render(request, 'study.html', {'deck': deck})
 
 
@@ -106,20 +138,56 @@ def register(request):
 def deck_list(request):
     """
     GET /api/decks/
-    Return all decks for the current user.
+    Return personal and shared decks for the current user.
     """
-    decks = Deck.objects.filter(user=request.user).order_by('-updated_at')
-    data = [{
-        'id': deck.id,
-        'title': deck.title,
-        'description': deck.description,
-        'created_at': deck.created_at.isoformat(),
-        'updated_at': deck.updated_at.isoformat(),
-        'total_cards': deck.total_cards(),
-        'cards_due': deck.cards_due_count(),
-    } for deck in decks]
+    from django.db.models import Q
 
-    return JsonResponse({'success': True, 'data': data})
+    # Get user's partnership
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    # Personal decks (created by user, not shared)
+    personal = Deck.objects.filter(
+        user=request.user,
+        partnerships__isnull=True
+    ).order_by('-updated_at')
+
+    # Shared decks (via partnership)
+    shared = partnership.decks.all().order_by('-updated_at') if partnership else Deck.objects.none()
+
+    partner = partnership.get_partner(request.user) if partnership else None
+
+    def serialize_deck(deck, is_shared=False):
+        result = {
+            'id': deck.id,
+            'title': deck.title,
+            'description': deck.description,
+            'created_at': deck.created_at.isoformat(),
+            'updated_at': deck.updated_at.isoformat(),
+            'total_cards': deck.total_cards(),
+            'cards_due': deck.cards_due_count(),
+        }
+        if is_shared:
+            result['is_shared'] = True
+            result['created_by'] = {
+                'id': deck.created_by.id,
+                'username': deck.created_by.username
+            } if deck.created_by else None
+            result['shared_with'] = {
+                'id': partner.id,
+                'username': partner.username
+            } if partner else None
+        return result
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'personal': [serialize_deck(d) for d in personal],
+            'shared': [serialize_deck(d, is_shared=True) for d in shared]
+        }
+    })
 
 
 @login_required
@@ -127,12 +195,15 @@ def deck_list(request):
 def deck_create(request):
     """
     POST /api/decks/create/
-    Create a new deck.
+    Create a new deck (personal or shared).
     """
+    from django.db.models import Q
+
     try:
         data = json.loads(request.body)
         title = data.get('title', '').strip()
         description = data.get('description', '').strip()
+        is_shared = data.get('shared', False)
 
         if not title:
             return JsonResponse({
@@ -140,11 +211,34 @@ def deck_create(request):
                 'error': {'code': 'INVALID_INPUT', 'message': 'Title is required'}
             }, status=400)
 
+        # Create deck
         deck = Deck.objects.create(
             user=request.user,
+            created_by=request.user,
             title=title,
             description=description
         )
+
+        # Link to partnership if shared
+        partner = None
+        if is_shared:
+            partnership = Partnership.objects.filter(
+                Q(user_a=request.user) | Q(user_b=request.user),
+                is_active=True
+            ).first()
+
+            if not partnership:
+                deck.delete()  # Rollback
+                return JsonResponse({
+                    'success': False,
+                    'error': {
+                        'code': 'NO_PARTNERSHIP',
+                        'message': 'Cannot create shared deck without active partnership'
+                    }
+                }, status=400)
+
+            partnership.decks.add(deck)
+            partner = partnership.get_partner(request.user)
 
         return JsonResponse({
             'success': True,
@@ -152,6 +246,15 @@ def deck_create(request):
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': is_shared,
+                'created_by': {
+                    'id': request.user.id,
+                    'username': request.user.username
+                },
+                'shared_with': {
+                    'id': partner.id,
+                    'username': partner.username
+                } if partner else None,
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': 0,
@@ -174,13 +277,22 @@ def deck_detail_api(request, deck_id):
     Return deck details with cards.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this deck'}
+            }, status=403)
+
         return JsonResponse({
             'success': True,
             'data': {
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': deck.is_shared(),
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
@@ -202,7 +314,15 @@ def deck_update(request, deck_id):
     Update deck information.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to edit this deck'}
+            }, status=403)
+
         data = json.loads(request.body)
 
         title = data.get('title', '').strip()
@@ -220,6 +340,7 @@ def deck_update(request, deck_id):
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': deck.is_shared(),
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
@@ -247,7 +368,15 @@ def deck_delete(request, deck_id):
     Delete a deck and all its cards.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to delete this deck'}
+            }, status=403)
+
         deck.delete()
         return JsonResponse({'success': True, 'data': {'message': 'Deck deleted successfully'}})
     except Deck.DoesNotExist:
