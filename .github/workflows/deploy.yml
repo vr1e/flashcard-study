@@ -1,0 +1,158 @@
+name: Deploy to PythonAnywhere
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual triggers from GitHub UI
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Django system checks
+        run: |
+          python manage.py check
+
+      - name: Run Django deployment checks
+        run: |
+          python manage.py check --deploy --settings=flashcard_project.settings
+        env:
+          SECRET_KEY: "django-insecure-test-key-for-ci-only"
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
+  build-and-deploy:
+    name: Build TypeScript and Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Upload compiled JavaScript to PythonAnywhere
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        run: |
+          echo "Uploading compiled JavaScript files..."
+
+          for file in static/js/*.js; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "  → Uploading $filename"
+
+              response=$(curl -w "\n%{http_code}" -X POST \
+                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/files/path/home/${PA_USERNAME}/flashcard-study/$file" \
+                -H "Authorization: Token ${PA_API_TOKEN}" \
+                -F "content=@$file" \
+                2>&1)
+
+              http_code=$(echo "$response" | tail -n1)
+
+              if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+                echo "    ✓ Success"
+              else
+                echo "    ✗ Failed (HTTP $http_code)"
+                echo "$response"
+                exit 1
+              fi
+            fi
+          done
+
+          echo "All files uploaded successfully!"
+
+      - name: Run deployment script on PythonAnywhere
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+        run: |
+          echo "Creating bash console to run deployment..."
+
+          response=$(curl -s -X POST \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "executable": "bash",
+              "arguments": ["/home/'${PA_USERNAME}'/deploy.sh"]
+            }')
+
+          console_id=$(echo "$response" | jq -r '.id // empty')
+
+          if [ -z "$console_id" ]; then
+            echo "Failed to create console. Response:"
+            echo "$response"
+            exit 1
+          fi
+
+          echo "Deployment script started in console: $console_id"
+          echo "Check PythonAnywhere console output for deployment logs"
+
+      - name: Reload web app
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+        run: |
+          echo "Reloading web app: $PA_DOMAIN"
+
+          response=$(curl -w "\n%{http_code}" -X POST \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/webapps/${PA_DOMAIN}/reload/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            2>&1)
+
+          http_code=$(echo "$response" | tail -n1)
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Deployment complete!"
+            echo "Your app is now live at: https://${PA_DOMAIN}"
+          else
+            echo "❌ Reload failed (HTTP $http_code)"
+            echo "$response"
+            exit 1
+          fi
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 Deployment Successful!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✓ Tests passed"
+          echo "✓ TypeScript compiled"
+          echo "✓ JavaScript uploaded to PythonAnywhere"
+          echo "✓ Deployment script executed"
+          echo "✓ Web app reloaded"
+          echo ""
+          echo "🌐 Live at: https://${{ secrets.PA_DOMAIN }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
