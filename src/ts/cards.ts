@@ -86,8 +86,6 @@ function createCardItem(card: any): string {
     // Support both new language fields and legacy front/back
     const langA = card.language_a || card.front || '';
     const langB = card.language_b || card.back || '';
-    const langACode = card.language_a_code || 'en';
-    const langBCode = card.language_b_code || 'en';
     const context = card.context || '';
 
     // Escape for onclick attribute - need to escape quotes
@@ -100,17 +98,17 @@ function createCardItem(card: any): string {
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-5">
-                        <strong>Language A <small class="text-muted">(${langACode})</small>:</strong>
+                        <strong>Language A:</strong>
                         <p class="mb-0">${escapeHtml(langA)}</p>
                     </div>
                     <div class="col-md-5">
-                        <strong>Language B <small class="text-muted">(${langBCode})</small>:</strong>
+                        <strong>Language B:</strong>
                         <p class="mb-0">${escapeHtml(langB)}</p>
                         ${context ? `<small class="text-muted d-block mt-1"><em>${escapeHtml(context)}</em></small>` : ''}
                     </div>
                     <div class="col-md-2 text-end">
                         <div class="btn-group mt-2">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editCard(${card.id}, '${escapedLangA}', '${escapedLangB}', '${langACode}', '${langBCode}', '${escapedContext}')">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editCard(${card.id}, '${escapedLangA}', '${escapedLangB}', '${escapedContext}')">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteCard(${card.id}, ${card.deck})">
@@ -135,8 +133,6 @@ function initCardCreation(deckId: number): void {
     const createBtn = document.getElementById('create-card-btn');
     const langAInput = document.getElementById('card-language-a') as HTMLTextAreaElement;
     const langBInput = document.getElementById('card-language-b') as HTMLTextAreaElement;
-    const langACodeInput = document.getElementById('card-language-a-code') as HTMLInputElement;
-    const langBCodeInput = document.getElementById('card-language-b-code') as HTMLInputElement;
     const contextInput = document.getElementById('card-context') as HTMLTextAreaElement;
 
     if (!createBtn) return;
@@ -144,8 +140,6 @@ function initCardCreation(deckId: number): void {
     createBtn.addEventListener('click', async () => {
         const language_a = langAInput.value.trim();
         const language_b = langBInput.value.trim();
-        const language_a_code = langACodeInput.value.trim() || 'en';
-        const language_b_code = langBCodeInput.value.trim() || 'en';
         const context = contextInput.value.trim();
 
         if (!language_a || !language_b) {
@@ -157,7 +151,7 @@ function initCardCreation(deckId: number): void {
             createBtn.textContent = 'Adding...';
             createBtn.setAttribute('disabled', 'true');
 
-            await api.createCard(deckId, language_a, language_b, language_a_code, language_b_code, context);
+            await api.createCard(deckId, language_a, language_b, context);
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('createCardModal')!);
@@ -166,8 +160,6 @@ function initCardCreation(deckId: number): void {
             // Reset form
             langAInput.value = '';
             langBInput.value = '';
-            langACodeInput.value = 'sr';
-            langBCodeInput.value = 'de';
             contextInput.value = '';
 
             // Reload cards and deck details
@@ -192,20 +184,16 @@ function initCardCreation(deckId: number): void {
 /**
  * Open edit modal for a card
  */
-function editCard(cardId: number, language_a: string, language_b: string, language_a_code: string, language_b_code: string, context: string = ''): void {
+function editCard(cardId: number, language_a: string, language_b: string, context: string = ''): void {
     const editModal = new bootstrap.Modal(document.getElementById('editCardModal')!);
     const idInput = document.getElementById('edit-card-id') as HTMLInputElement;
     const langAInput = document.getElementById('edit-card-language-a') as HTMLTextAreaElement;
     const langBInput = document.getElementById('edit-card-language-b') as HTMLTextAreaElement;
-    const langACodeInput = document.getElementById('edit-card-language-a-code') as HTMLInputElement;
-    const langBCodeInput = document.getElementById('edit-card-language-b-code') as HTMLInputElement;
     const contextInput = document.getElementById('edit-card-context') as HTMLTextAreaElement;
 
     idInput.value = cardId.toString();
     langAInput.value = language_a;
     langBInput.value = language_b;
-    langACodeInput.value = language_a_code;
-    langBCodeInput.value = language_b_code;
     contextInput.value = context;
 
     editModal.show();
@@ -222,8 +210,6 @@ function initCardEditing(deckId: number): void {
         const cardId = parseInt((document.getElementById('edit-card-id') as HTMLInputElement).value);
         const language_a = (document.getElementById('edit-card-language-a') as HTMLTextAreaElement).value.trim();
         const language_b = (document.getElementById('edit-card-language-b') as HTMLTextAreaElement).value.trim();
-        const language_a_code = (document.getElementById('edit-card-language-a-code') as HTMLInputElement).value.trim() || 'en';
-        const language_b_code = (document.getElementById('edit-card-language-b-code') as HTMLInputElement).value.trim() || 'en';
         const context = (document.getElementById('edit-card-context') as HTMLTextAreaElement).value.trim();
 
         if (!language_a || !language_b) {
@@ -235,7 +221,7 @@ function initCardEditing(deckId: number): void {
             updateBtn.textContent = 'Saving...';
             updateBtn.setAttribute('disabled', 'true');
 
-            await api.updateCard(cardId, language_a, language_b, language_a_code, language_b_code, context);
+            await api.updateCard(cardId, language_a, language_b, context);
 
             const modal = bootstrap.Modal.getInstance(document.getElementById('editCardModal')!);
             modal?.hide();

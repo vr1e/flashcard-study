@@ -21,8 +21,8 @@ class DeckAdmin(admin.ModelAdmin):
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     """Admin interface for Card model."""
-    list_display = ('__str__', 'deck', 'language_a_code', 'language_b_code', 'created_at')
-    list_filter = ('deck', 'language_a_code', 'language_b_code', 'created_at')
+    list_display = ('__str__', 'deck', 'created_at')
+    list_filter = ('deck', 'created_at')
     search_fields = ('language_a', 'language_b', 'front', 'back', 'deck__title', 'context')
     readonly_fields = ('created_at', 'updated_at')
 

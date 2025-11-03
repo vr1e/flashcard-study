@@ -95,18 +95,6 @@ class Card(models.Model):
         help_text="Second language (e.g., German translation)"
     )
 
-    # Language metadata
-    language_a_code = models.CharField(
-        max_length=10,
-        default='en',
-        help_text="ISO 639-1 language code (e.g., 'sr', 'de', 'en')"
-    )
-    language_b_code = models.CharField(
-        max_length=10,
-        default='en',
-        help_text="ISO 639-1 language code"
-    )
-
     # Optional context
     context = models.TextField(
         blank=True,

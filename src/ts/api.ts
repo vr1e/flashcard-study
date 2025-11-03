@@ -41,11 +41,9 @@ interface Deck {
 
 interface Card {
 	id: number;
-	// New language fields
+	// Language fields
 	language_a?: string;
 	language_b?: string;
-	language_a_code?: string;
-	language_b_code?: string;
 	context?: string;
 	// Legacy fields (for backward compatibility)
 	front?: string;
@@ -61,8 +59,6 @@ interface StudySession {
 	deck: {
 		id: number;
 		title: string;
-		language_a: string;
-		language_b: string;
 	};
 	direction: StudyDirection;
 	cards: Array<{
@@ -83,8 +79,6 @@ interface ReviewSubmission {
 
 interface CardsResponse {
 	cards: Card[];
-	language_a_code: string;
-	language_b_code: string;
 }
 
 interface ApiResponse<T> {
@@ -231,8 +225,6 @@ class FlashcardAPI {
 		deckId: number,
 		languageA: string,
 		languageB: string,
-		languageACode: string = 'en',
-		languageBCode: string = 'en',
 		context: string = ''
 	): Promise<Card> {
 		return this.fetch<Card>(`${this.baseURL}/decks/${deckId}/cards/create/`, {
@@ -240,8 +232,6 @@ class FlashcardAPI {
 			body: JSON.stringify({
 				language_a: languageA,
 				language_b: languageB,
-				language_a_code: languageACode,
-				language_b_code: languageBCode,
 				context
 			}),
 		});
@@ -251,16 +241,12 @@ class FlashcardAPI {
 		cardId: number,
 		languageA: string,
 		languageB: string,
-		languageACode?: string,
-		languageBCode?: string,
 		context?: string
 	): Promise<Card> {
 		const body: any = {
 			language_a: languageA,
 			language_b: languageB
 		};
-		if (languageACode) body.language_a_code = languageACode;
-		if (languageBCode) body.language_b_code = languageBCode;
 		if (context !== undefined) body.context = context;
 
 		return this.fetch<Card>(`${this.baseURL}/cards/${cardId}/update/`, {

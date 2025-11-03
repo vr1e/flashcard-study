@@ -432,11 +432,9 @@ def card_list(request, deck_id):
         cards = deck.cards.all().order_by('created_at')
         data = [{
             'id': card.id,
-            # New language fields
+            # Language fields
             'language_a': card.language_a,
             'language_b': card.language_b,
-            'language_a_code': card.language_a_code,
-            'language_b_code': card.language_b_code,
             'context': card.context,
             # Legacy fields for backward compatibility
             'front': card.front,
@@ -449,8 +447,6 @@ def card_list(request, deck_id):
             'success': True,
             'data': {
                 'cards': data,
-                'language_a_code': cards[0].language_a_code if cards else 'en',
-                'language_b_code': cards[0].language_b_code if cards else 'en',
             }
         })
     except Deck.DoesNotExist:
@@ -482,8 +478,6 @@ def card_create(request, deck_id):
         # Support both legacy (front/back) and new (language_a/language_b) formats
         language_a = data.get('language_a', data.get('front', '')).strip()
         language_b = data.get('language_b', data.get('back', '')).strip()
-        language_a_code = data.get('language_a_code', 'en')
-        language_b_code = data.get('language_b_code', 'en')
         context = data.get('context', '').strip()
 
         if not language_a or not language_b:
@@ -496,8 +490,6 @@ def card_create(request, deck_id):
             deck=deck,
             language_a=language_a,
             language_b=language_b,
-            language_a_code=language_a_code,
-            language_b_code=language_b_code,
             context=context,
             # Legacy fields for backward compatibility
             front=language_a,
@@ -535,8 +527,6 @@ def card_create(request, deck_id):
                 'id': card.id,
                 'language_a': card.language_a,
                 'language_b': card.language_b,
-                'language_a_code': card.language_a_code,
-                'language_b_code': card.language_b_code,
                 'context': card.context,
                 'created_at': card.created_at.isoformat(),
                 'updated_at': card.updated_at.isoformat(),
@@ -583,12 +573,6 @@ def card_update(request, card_id):
             card.language_b = data.get('language_b', data.get('back', card.language_b)).strip()
             card.back = card.language_b  # Keep legacy field in sync
 
-        if 'language_a_code' in data:
-            card.language_a_code = data['language_a_code']
-
-        if 'language_b_code' in data:
-            card.language_b_code = data['language_b_code']
-
         if 'context' in data:
             card.context = data['context'].strip()
 
@@ -600,8 +584,6 @@ def card_update(request, card_id):
                 'id': card.id,
                 'language_a': card.language_a,
                 'language_b': card.language_b,
-                'language_a_code': card.language_a_code,
-                'language_b_code': card.language_b_code,
                 'context': card.context,
                 'created_at': card.created_at.isoformat(),
                 'updated_at': card.updated_at.isoformat(),
@@ -727,8 +709,6 @@ def study_session(request, deck_id):
                     'deck': {
                         'id': deck.id,
                         'title': deck.title,
-                        'language_a': deck.cards.first().language_a_code if deck.cards.exists() else 'en',
-                        'language_b': deck.cards.first().language_b_code if deck.cards.exists() else 'en'
                     },
                     'direction': direction,
                     'cards': cards
