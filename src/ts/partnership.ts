@@ -244,12 +244,13 @@ export async function dissolvePartnership(): Promise<void> {
 	try {
 		await api.dissolvePartnership();
 
-		// Close modal and reload page
+		// Close modal and update UI dynamically
 		const modalElement = document.getElementById("dissolveModal") as HTMLElement;
 		const modal = (window as any).bootstrap.Modal.getInstance(modalElement);
 		modal.hide();
 
-		window.location.reload();
+		currentPartnership = null;
+		await initNavbarPartnership();
 	} catch (error: any) {
 		errorElement.textContent = error.message || "Failed to dissolve partnership";
 		errorElement.style.display = "block";
