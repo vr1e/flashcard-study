@@ -113,8 +113,8 @@ def register(request):
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-        password_confirm = request.POST.get('password_confirm', '')
+        password = request.POST.get('password1', '')
+        password_confirm = request.POST.get('password2', '')
 
         # Validation
         if not username or not password:
@@ -503,6 +503,31 @@ def card_create(request, deck_id):
             front=language_a,
             back=language_b,
         )
+
+        # Create UserCardProgress for all users with access to this deck
+        from django.utils import timezone
+        users_with_access = [deck.user]  # Deck owner
+
+        # Add partner if deck is shared
+        partnership = deck.partnerships.filter(is_active=True).first()
+        if partnership:
+            partner = partnership.user_b if partnership.user_a == deck.user else partnership.user_a
+            users_with_access.append(partner)
+
+        # Create progress records for both directions for each user
+        for user in users_with_access:
+            UserCardProgress.objects.create(
+                user=user,
+                card=card,
+                study_direction='A_TO_B',
+                next_review=timezone.now()
+            )
+            UserCardProgress.objects.create(
+                user=user,
+                card=card,
+                study_direction='B_TO_A',
+                next_review=timezone.now()
+            )
 
         return JsonResponse({
             'success': True,
