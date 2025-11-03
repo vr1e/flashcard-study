@@ -102,7 +102,7 @@ jobs:
         run: |
           echo "Creating bash console..."
 
-          response=$(curl -w "\n%{http_code}" -X POST \
+          response=$(curl -s -w "\n%{http_code}" -X POST \
             "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
             -H "Authorization: Token ${PA_API_TOKEN}" \
             -H "Content-Type: application/json" \
