@@ -897,7 +897,7 @@ def partnership_get(request):
 @require_http_methods(["DELETE"])
 def partnership_dissolve(request):
     """
-    DELETE /api/partnership/
+    DELETE /api/partnership/dissolve/
     Dissolve current partnership.
     """
     from django.db.models import Q
