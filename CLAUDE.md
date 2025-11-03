@@ -128,6 +128,11 @@ const element = document.getElementById("my-id") as HTMLElement;
 - Return `JsonResponse` for APIs, `render()` for pages
 - Imports: Django → third-party → local
 
+### Git
+
+- **Commit messages**: One line only, concise and descriptive
+- **Example**: `Add partnership and bidirectional learning models`
+
 ### TypeScript
 
 - `camelCase` for functions/variables

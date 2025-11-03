@@ -10,13 +10,130 @@ This directory contains technical documentation for the Flashcard Study Tool pro
 
 The `rfcs/` directory contains technical design documents that describe features, architecture decisions, and implementation approaches.
 
-#### RFCs
+#### RFC Implementation Status
 
-- [RFC 0001: Spaced Repetition Algorithm](rfcs/0001-spaced-repetition-algorithm.md) - SM-2 algorithm (✅ Implemented)
-- [RFC 0002: Study Session Flow](rfcs/0002-study-session-flow.md) - Interactive study sessions (✅ Implemented)
-- [RFC 0003: API Design](rfcs/0003-api-design.md) - RESTful API endpoints (✅ Implemented)
-- [RFC 0004: Testing Strategy](rfcs/0004-testing-strategy.md) - Automated testing approach (Draft)
-- [RFC 0005: Production Deployment](rfcs/0005-production-deployment.md) - Production fixes & deployment guide (✅ Implemented)
+| RFC                                                  | Title                         | Status         | Complete | Key Notes                                                 |
+| ---------------------------------------------------- | ----------------------------- | -------------- | -------- | --------------------------------------------------------- |
+| [0001](rfcs/0001-spaced-repetition-algorithm.md)     | Spaced Repetition Algorithm   | ✅ Implemented | 100%     | SM-2 algorithm fully working, all card fields present     |
+| [0002](rfcs/0002-study-session-flow.md)              | Study Session Flow            | ✅ Implemented | 100%     | Interactive sessions + bonus features (timer, auto-start) |
+| [0003](rfcs/0003-api-design.md)                      | API Design                    | ✅ Implemented | 100%     | All 16 endpoints operational, consistent JSON structure   |
+| [0004](rfcs/0004-testing-strategy.md)                | Testing Strategy              | 📝 Draft       | 0%       | **CRITICAL GAP**: No pytest tests, manual testing only    |
+| [0005](rfcs/0005-production-deployment.md)           | Production Deployment         | ✅ Implemented | 100%     | Deployed to PythonAnywhere, all security fixes applied    |
+| [0006](rfcs/0006-automated-deployment.md)            | Automated Deployment          | ✅ Implemented | 90%      | GitHub Actions CI/CD, manual migrations required          |
+| [0007](rfcs/0007-partnership-shared-decks.md)        | Partnership/Shared Decks      | 🚧 Partial     | 40%      | Models exist, **NO UI/API endpoints**                     |
+| [0008](rfcs/0008-bidirectional-language-learning.md) | Bidirectional Learning        | 📝 Draft       | 0%       | Not started, depends on RFC 0007 completion               |
+| [0009](rfcs/0009-data-migration-strategy.md)         | Data Migration Strategy       | 📝 Draft       | 0%       | Migration plan documented, not executed                   |
+| [0010](rfcs/0010-course-collection-terminology.md)   | Course/Collection Terminology | 🔮 Planned     | 0%       | UX vision, depends on RFC 0007 completion                 |
+
+**Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned
+
+---
+
+### Implementation Summary
+
+#### ✅ Production-Ready Core (100% Complete)
+
+- **Single-user flashcard system** with SM-2 spaced repetition
+- Full CRUD for decks and cards
+- Interactive study sessions with quality tracking
+- Statistics dashboard with visualizations
+- User authentication and authorization
+- Production deployment with automated CI/CD
+
+#### 🚧 Incomplete Features
+
+- **RFC 0007 (Partnership/Shared Decks)**: Backend models implemented, but no API endpoints or UI
+  - `Partnership` and `PartnershipInvitation` models exist
+  - Deck permission methods (`can_edit()`, `can_view()`) implemented
+  - Missing: API endpoints, frontend UI, invitation flow
+- **RFC 0004 (Testing)**: No automated test suite despite RFC documentation
+  - Critical gap for production confidence
+  - Manual testing and Playwright E2E only
+
+#### 🔮 Future Features (Not Started)
+
+- **RFC 0008**: Bidirectional language learning (couples mode)
+- **RFC 0009**: Data migration to support RFC 0008
+- **RFC 0010**: UI/UX terminology changes for partnership features
+
+---
+
+### Development Roadmap
+
+#### Phase 1: Stability & Testing (Recommended Next Steps)
+
+**Goal**: Production confidence and code quality
+
+1. **Implement RFC 0004 (Testing Strategy)**
+
+   - Add pytest test suite (~25-30 tests)
+   - SM-2 algorithm unit tests
+   - API endpoint integration tests
+   - Model method tests
+   - **Effort**: 2-3 days
+
+2. **Bug Fixes**
+   - Fix shared deck permissions in card listing
+   - Add rate limiting to partnership invites
+   - Input validation for card text length
+   - **Effort**: 4-6 hours
+
+#### Phase 2: Partnership Features (Complete RFC 0007)
+
+**Goal**: Enable shared deck collaboration
+
+1. **API Endpoints**
+
+   - POST `/api/partnership/invite/` - Generate invitation code
+   - POST `/api/partnership/accept/` - Accept via code
+   - GET `/api/partnership/` - List partnerships
+   - DELETE `/api/partnership/<id>/` - Dissolve partnership
+   - **Effort**: 1 day
+
+2. **Frontend UI**
+   - Partnership management page
+   - Invitation code generation/acceptance forms
+   - Shared deck indicator on dashboard
+   - Deck creation with `shared: true` option
+   - **Effort**: 2-3 days
+
+#### Phase 3: Advanced Features (RFCs 0008-0010)
+
+**Goal**: Couples language learning platform
+
+1. **RFC 0008**: Implement bidirectional learning
+
+   - New `UserCardProgress` model (per-user SM-2 data)
+   - Language fields on cards (`language_a`, `language_b`)
+   - Study direction selection
+   - **Effort**: 5-7 days
+
+2. **RFC 0009**: Execute data migration
+
+   - Migrate existing cards to new schema
+   - Preserve SM-2 progress data
+   - **Effort**: 2-3 days
+
+3. **RFC 0010**: UX improvements
+   - Terminology changes ("Decks" → "Courses/Collections")
+   - Color-coded shared vs personal decks
+   - Progressive disclosure of partnership features
+   - **Effort**: 1-2 days
+
+---
+
+### Quick Status Reference
+
+```
+Core Flashcard System:        ███████████████████████████████ 100%
+Partnership/Sharing:          ████████████░░░░░░░░░░░░░░░░░░░  40%
+Bidirectional Learning:       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%
+Automated Testing:            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%
+```
+
+**Current Focus**: Single-user flashcard MVP (fully functional)
+**Next Milestone**: Add test coverage (RFC 0004)
+**Future Vision**: Couples language learning platform (RFCs 0007-0010)
 
 #### RFC Process
 

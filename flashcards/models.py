@@ -75,22 +75,142 @@ class Deck(models.Model):
 
 class Card(models.Model):
     """
-    Individual flashcard with spaced repetition algorithm data.
-    Uses SM-2 algorithm for optimal review scheduling.
+    Language-aware flashcard for bidirectional learning.
+
+    Each card represents a word/phrase in two languages.
+    Can be studied in either direction (A→B or B→A).
+    SM-2 progress is tracked per user per direction (see UserCardProgress).
     """
     deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name='cards')
-    front = models.TextField()  # Question
-    back = models.TextField()   # Answer
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    # Spaced Repetition fields (SM-2 Algorithm)
-    ease_factor = models.FloatField(default=2.5)  # How "easy" the card is
-    interval = models.IntegerField(default=1)      # Days until next review
-    repetitions = models.IntegerField(default=0)   # Successful reviews in a row
-    next_review = models.DateTimeField(default=timezone.now)
+    # Language content (nullable during migration)
+    language_a = models.TextField(
+        null=True,
+        blank=True,
+        help_text="First language (e.g., Serbian word)"
+    )
+    language_b = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Second language (e.g., German translation)"
+    )
+
+    # Language metadata
+    language_a_code = models.CharField(
+        max_length=10,
+        default='en',
+        help_text="ISO 639-1 language code (e.g., 'sr', 'de', 'en')"
+    )
+    language_b_code = models.CharField(
+        max_length=10,
+        default='en',
+        help_text="ISO 639-1 language code"
+    )
+
+    # Optional context
+    context = models.TextField(
+        blank=True,
+        help_text="Usage example or additional notes"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Legacy fields for backward compatibility during migration
+    front = models.TextField(null=True, blank=True)  # Will be removed
+    back = models.TextField(null=True, blank=True)   # Will be removed
+    ease_factor = models.FloatField(default=2.5, null=True, blank=True)
+    interval = models.IntegerField(default=1, null=True, blank=True)
+    repetitions = models.IntegerField(default=0, null=True, blank=True)
+    next_review = models.DateTimeField(default=timezone.now, null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['deck', 'created_at']),
+        ]
 
     def __str__(self):
-        return f"{self.front[:50]}..."
+        if self.language_a and self.language_b:
+            return f"{self.language_a} ↔ {self.language_b}"
+        elif self.front:
+            return f"{self.front[:50]}..."
+        return "Empty card"
+
+    def is_due(self):
+        """Check if card is due for review (legacy method)."""
+        if self.next_review:
+            return self.next_review <= timezone.now()
+        return False
+
+
+class UserCardProgress(models.Model):
+    """
+    Individual user's spaced repetition progress for a card in a specific direction.
+
+    Example:
+    - User A learning Serbian→German: separate progress
+    - User A learning German→Serbian: separate progress
+    - User B learning Serbian→German: separate progress
+
+    This allows partners to study the same card at their own pace.
+    """
+    DIRECTION_CHOICES = [
+        ('A_TO_B', 'Language A → Language B'),
+        ('B_TO_A', 'Language B → Language A'),
+    ]
+
+    # Identifiers
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='card_progress',
+        help_text="User studying this card"
+    )
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.CASCADE,
+        related_name='user_progress',
+        help_text="The card being studied"
+    )
+    study_direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        help_text="Which direction user is studying"
+    )
+
+    # SM-2 algorithm fields (per user, per direction)
+    ease_factor = models.FloatField(
+        default=2.5,
+        help_text="Difficulty multiplier (1.3 minimum)"
+    )
+    interval = models.IntegerField(
+        default=1,
+        help_text="Days until next review"
+    )
+    repetitions = models.IntegerField(
+        default=0,
+        help_text="Consecutive successful reviews"
+    )
+    next_review = models.DateTimeField(
+        default=timezone.now,
+        help_text="When this card is due for review"
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [['user', 'card', 'study_direction']]
+        indexes = [
+            models.Index(fields=['user', 'next_review']),
+            models.Index(fields=['user', 'card']),
+        ]
+        verbose_name_plural = "User card progress records"
+
+    def __str__(self):
+        direction = "→" if self.study_direction == 'A_TO_B' else "←"
+        return f"{self.user.username}: {self.card} ({direction})"
 
     def is_due(self):
         """Check if card is due for review."""
@@ -101,14 +221,27 @@ class StudySession(models.Model):
     """
     Tracks a study session for analytics and progress tracking.
     """
+    DIRECTION_CHOICES = [
+        ('A_TO_B', 'Language A → Language B'),
+        ('B_TO_A', 'Language B → Language A'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_sessions')
     deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name='sessions')
+    study_direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Primary direction for this session (null if mixed)"
+    )
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     cards_studied = models.IntegerField(default=0)
 
     def __str__(self):
-        return f"{self.user.username} - {self.deck.title} - {self.started_at}"
+        direction = f" ({self.study_direction})" if self.study_direction else ""
+        return f"{self.user.username} - {self.deck.title}{direction} - {self.started_at}"
 
 
 class Review(models.Model):
@@ -125,14 +258,27 @@ class Review(models.Model):
         (5, 'Perfect response'),
     ]
 
+    DIRECTION_CHOICES = [
+        ('A_TO_B', 'Language A → Language B'),
+        ('B_TO_A', 'Language B → Language A'),
+    ]
+
     card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name='reviews')
     session = models.ForeignKey(StudySession, on_delete=models.CASCADE, related_name='reviews')
     quality = models.IntegerField(choices=QUALITY_CHOICES)  # User's self-rating
+    study_direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Direction studied for this review"
+    )
     reviewed_at = models.DateTimeField(auto_now_add=True)
     time_taken = models.IntegerField()  # seconds
 
     def __str__(self):
-        return f"{self.card} - Quality: {self.quality}"
+        direction = f" ({self.study_direction})" if self.study_direction else ""
+        return f"{self.card}{direction} - Quality: {self.quality}"
 
 
 class Partnership(models.Model):
