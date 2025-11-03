@@ -234,13 +234,10 @@ class PartnershipInvitation(models.Model):
     @staticmethod
     def generate_code():
         """Generate unique 6-character alphanumeric code."""
-        import random
+        import secrets
         import string
         while True:
-            code = ''.join(random.choices(
-                string.ascii_uppercase + string.digits,
-                k=6
-            ))
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             if not PartnershipInvitation.objects.filter(code=code).exists():
                 return code
 
