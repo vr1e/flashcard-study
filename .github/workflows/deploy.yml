@@ -100,6 +100,23 @@ jobs:
           PA_USERNAME: ${{ secrets.PA_USERNAME }}
           PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
         run: |
+          echo "Cleaning up old consoles..."
+
+          # Get list of existing consoles
+          consoles=$(curl -s -X GET \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
+            -H "Authorization: Token ${PA_API_TOKEN}")
+
+          # Delete all existing consoles
+          echo "$consoles" | jq -r '.[].id' | while read console_id; do
+            if [ ! -z "$console_id" ]; then
+              echo "  → Deleting console $console_id"
+              curl -s -X DELETE \
+                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${console_id}/" \
+                -H "Authorization: Token ${PA_API_TOKEN}"
+            fi
+          done
+
           echo "Creating bash console..."
 
           response=$(curl -s -w "\n%{http_code}" -X POST \
