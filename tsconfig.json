@@ -12,7 +12,7 @@
 		/* Emit */
 		"outDir": "./static/js",
 		"rootDir": "./src/ts",
-		"sourceMap": true,
+		"sourceMap": false,
 		"removeComments": true,
 
 		/* Interop Constraints */
