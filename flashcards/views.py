@@ -10,6 +10,7 @@ Provides API endpoints and page views for:
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 import json
@@ -127,6 +128,14 @@ def register(request):
         return redirect('index')
 
     return render(request, 'register.html')
+
+
+def logout_view(request):
+    """
+    Logout view that accepts GET requests.
+    """
+    logout(request)
+    return redirect('login')
 
 
 # ============================================================================

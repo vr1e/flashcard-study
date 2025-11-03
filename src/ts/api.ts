@@ -32,6 +32,11 @@ interface Deck {
 	cards_due: number;
 	created_at: string;
 	updated_at: string;
+	is_shared?: boolean;
+	created_by?: {
+		id: number;
+		username: string;
+	};
 }
 
 interface Card {
@@ -79,6 +84,28 @@ interface Statistics {
 		cards_studied: number;
 		time_spent: number;
 	}>;
+}
+
+interface Partnership {
+	id: number;
+	partner: {
+		id: number;
+		username: string;
+		email: string;
+	};
+	created_at: string;
+	shared_decks_count: number;
+}
+
+interface PartnershipInvitation {
+	code: string;
+	created_at: string;
+	expires_at: string;
+}
+
+interface DecksResponse {
+	personal: Deck[];
+	shared: Deck[];
 }
 
 // ============================================================================
@@ -136,14 +163,14 @@ class FlashcardAPI {
 	// Deck Endpoints
 	// ========================================================================
 
-	async getDecks(): Promise<Deck[]> {
-		return this.fetch<Deck[]>(`${this.baseURL}/decks/`);
+	async getDecks(): Promise<DecksResponse> {
+		return this.fetch<DecksResponse>(`${this.baseURL}/decks/`);
 	}
 
-	async createDeck(title: string, description: string = ""): Promise<Deck> {
+	async createDeck(title: string, description: string = "", isShared: boolean = false): Promise<Deck> {
 		return this.fetch<Deck>(`${this.baseURL}/decks/create/`, {
 			method: "POST",
-			body: JSON.stringify({ title, description }),
+			body: JSON.stringify({ title, description, shared: isShared }),
 		});
 	}
 
@@ -229,6 +256,48 @@ class FlashcardAPI {
 
 	async getDeckStats(deckId: number): Promise<any> {
 		return this.fetch<any>(`${this.baseURL}/decks/${deckId}/stats/`);
+	}
+
+	// ========================================================================
+	// Partnership Endpoints
+	// ========================================================================
+
+	async createPartnershipInvite(): Promise<PartnershipInvitation> {
+		return this.fetch<PartnershipInvitation>(`${this.baseURL}/partnership/invite/`, {
+			method: "POST",
+		});
+	}
+
+	async acceptPartnershipInvite(code: string): Promise<Partnership> {
+		return this.fetch<Partnership>(`${this.baseURL}/partnership/accept/`, {
+			method: "POST",
+			body: JSON.stringify({ code }),
+		});
+	}
+
+	async getPartnership(): Promise<Partnership | null> {
+		try {
+			return await this.fetch<Partnership>(`${this.baseURL}/partnership/`);
+		} catch (error) {
+			// If no partnership exists, backend returns error, return null
+			if (error instanceof ApiError && error.code === "NO_PARTNERSHIP") {
+				return null;
+			}
+			throw error;
+		}
+	}
+
+	async dissolvePartnership(): Promise<void> {
+		return this.fetch<void>(`${this.baseURL}/partnership/dissolve/`, {
+			method: "DELETE",
+		});
+	}
+
+	async convertDeckType(deckId: number, toShared: boolean): Promise<Deck> {
+		return this.fetch<Deck>(`${this.baseURL}/decks/${deckId}/update/`, {
+			method: "PUT",
+			body: JSON.stringify({ shared: toShared }),
+		});
 	}
 }
 
