@@ -70,13 +70,29 @@
             </div>
             <div class="modal-body">
                 <form id="create-card-form">
-                    <div class="mb-3">
-                        <label for="card-front" class="form-label">Front (Question)</label>
-                        <textarea class="form-control" id="card-front" rows="3" required></textarea>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="card-language-a" class="form-label">Language A</label>
+                            <textarea class="form-control" id="card-language-a" rows="2" required placeholder="e.g., Serbian word"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="card-language-a-code" class="form-label">Code</label>
+                            <input type="text" class="form-control" id="card-language-a-code" maxlength="10" value="sr" placeholder="sr">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="card-language-b" class="form-label">Language B</label>
+                            <textarea class="form-control" id="card-language-b" rows="2" required placeholder="e.g., German translation"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="card-language-b-code" class="form-label">Code</label>
+                            <input type="text" class="form-control" id="card-language-b-code" maxlength="10" value="de" placeholder="de">
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="card-back" class="form-label">Back (Answer)</label>
-                        <textarea class="form-control" id="card-back" rows="3" required></textarea>
+                        <label for="card-context" class="form-label">Context (Optional)</label>
+                        <textarea class="form-control" id="card-context" rows="2" placeholder="Usage example or additional notes"></textarea>
                     </div>
                 </form>
             </div>
@@ -99,13 +115,29 @@
             <div class="modal-body">
                 <form id="edit-card-form">
                     <input type="hidden" id="edit-card-id">
-                    <div class="mb-3">
-                        <label for="edit-card-front" class="form-label">Front (Question)</label>
-                        <textarea class="form-control" id="edit-card-front" rows="3" required></textarea>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="edit-card-language-a" class="form-label">Language A</label>
+                            <textarea class="form-control" id="edit-card-language-a" rows="2" required></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit-card-language-a-code" class="form-label">Code</label>
+                            <input type="text" class="form-control" id="edit-card-language-a-code" maxlength="10">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="edit-card-language-b" class="form-label">Language B</label>
+                            <textarea class="form-control" id="edit-card-language-b" rows="2" required></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit-card-language-b-code" class="form-label">Code</label>
+                            <input type="text" class="form-control" id="edit-card-language-b-code" maxlength="10">
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="edit-card-back" class="form-label">Back (Answer)</label>
-                        <textarea class="form-control" id="edit-card-back" rows="3" required></textarea>
+                        <label for="edit-card-context" class="form-label">Context (Optional)</label>
+                        <textarea class="form-control" id="edit-card-context" rows="2"></textarea>
                     </div>
                 </form>
             </div>

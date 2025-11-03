@@ -83,29 +83,34 @@ async function loadCards(deckId: number): Promise<void> {
  * Create HTML for a single card item
  */
 function createCardItem(card: any): string {
-    const nextReview = new Date(card.next_review);
-    const isOverdue = nextReview < new Date();
-    const reviewClass = isOverdue ? 'text-danger' : 'text-success';
+    // Support both new language fields and legacy front/back
+    const langA = card.language_a || card.front || '';
+    const langB = card.language_b || card.back || '';
+    const langACode = card.language_a_code || 'en';
+    const langBCode = card.language_b_code || 'en';
+    const context = card.context || '';
+
+    // Escape for onclick attribute - need to escape quotes
+    const escapedLangA = escapeHtml(langA).replace(/'/g, "\\'");
+    const escapedLangB = escapeHtml(langB).replace(/'/g, "\\'");
+    const escapedContext = escapeHtml(context).replace(/'/g, "\\'");
 
     return `
         <div class="card card-item mb-2">
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-5">
-                        <strong>Front:</strong>
-                        <p class="mb-0">${escapeHtml(card.front)}</p>
+                        <strong>Language A <small class="text-muted">(${langACode})</small>:</strong>
+                        <p class="mb-0">${escapeHtml(langA)}</p>
                     </div>
                     <div class="col-md-5">
-                        <strong>Back:</strong>
-                        <p class="mb-0">${escapeHtml(card.back)}</p>
+                        <strong>Language B <small class="text-muted">(${langBCode})</small>:</strong>
+                        <p class="mb-0">${escapeHtml(langB)}</p>
+                        ${context ? `<small class="text-muted d-block mt-1"><em>${escapeHtml(context)}</em></small>` : ''}
                     </div>
                     <div class="col-md-2 text-end">
-                        <small class="${reviewClass}">
-                            <i class="bi bi-calendar"></i>
-                            ${formatDate(nextReview)}
-                        </small>
                         <div class="btn-group mt-2">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editCard(${card.id}, '${escapeHtml(card.front)}', '${escapeHtml(card.back)}')">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editCard(${card.id}, '${escapedLangA}', '${escapedLangB}', '${langACode}', '${langBCode}', '${escapedContext}')">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteCard(${card.id}, ${card.deck})">
@@ -128,17 +133,23 @@ function createCardItem(card: any): string {
  */
 function initCardCreation(deckId: number): void {
     const createBtn = document.getElementById('create-card-btn');
-    const frontInput = document.getElementById('card-front') as HTMLTextAreaElement;
-    const backInput = document.getElementById('card-back') as HTMLTextAreaElement;
+    const langAInput = document.getElementById('card-language-a') as HTMLTextAreaElement;
+    const langBInput = document.getElementById('card-language-b') as HTMLTextAreaElement;
+    const langACodeInput = document.getElementById('card-language-a-code') as HTMLInputElement;
+    const langBCodeInput = document.getElementById('card-language-b-code') as HTMLInputElement;
+    const contextInput = document.getElementById('card-context') as HTMLTextAreaElement;
 
     if (!createBtn) return;
 
     createBtn.addEventListener('click', async () => {
-        const front = frontInput.value.trim();
-        const back = backInput.value.trim();
+        const language_a = langAInput.value.trim();
+        const language_b = langBInput.value.trim();
+        const language_a_code = langACodeInput.value.trim() || 'en';
+        const language_b_code = langBCodeInput.value.trim() || 'en';
+        const context = contextInput.value.trim();
 
-        if (!front || !back) {
-            alert('Please fill in both front and back');
+        if (!language_a || !language_b) {
+            alert('Please fill in both language fields');
             return;
         }
 
@@ -146,15 +157,18 @@ function initCardCreation(deckId: number): void {
             createBtn.textContent = 'Adding...';
             createBtn.setAttribute('disabled', 'true');
 
-            await api.createCard(deckId, front, back);
+            await api.createCard(deckId, language_a, language_b, language_a_code, language_b_code, context);
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('createCardModal')!);
             modal?.hide();
 
             // Reset form
-            frontInput.value = '';
-            backInput.value = '';
+            langAInput.value = '';
+            langBInput.value = '';
+            langACodeInput.value = 'sr';
+            langBCodeInput.value = 'de';
+            contextInput.value = '';
 
             // Reload cards and deck details
             await Promise.all([
@@ -178,15 +192,21 @@ function initCardCreation(deckId: number): void {
 /**
  * Open edit modal for a card
  */
-function editCard(cardId: number, front: string, back: string): void {
+function editCard(cardId: number, language_a: string, language_b: string, language_a_code: string, language_b_code: string, context: string = ''): void {
     const editModal = new bootstrap.Modal(document.getElementById('editCardModal')!);
     const idInput = document.getElementById('edit-card-id') as HTMLInputElement;
-    const frontInput = document.getElementById('edit-card-front') as HTMLTextAreaElement;
-    const backInput = document.getElementById('edit-card-back') as HTMLTextAreaElement;
+    const langAInput = document.getElementById('edit-card-language-a') as HTMLTextAreaElement;
+    const langBInput = document.getElementById('edit-card-language-b') as HTMLTextAreaElement;
+    const langACodeInput = document.getElementById('edit-card-language-a-code') as HTMLInputElement;
+    const langBCodeInput = document.getElementById('edit-card-language-b-code') as HTMLInputElement;
+    const contextInput = document.getElementById('edit-card-context') as HTMLTextAreaElement;
 
     idInput.value = cardId.toString();
-    frontInput.value = front;
-    backInput.value = back;
+    langAInput.value = language_a;
+    langBInput.value = language_b;
+    langACodeInput.value = language_a_code;
+    langBCodeInput.value = language_b_code;
+    contextInput.value = context;
 
     editModal.show();
 }
@@ -200,11 +220,14 @@ function initCardEditing(deckId: number): void {
 
     updateBtn.addEventListener('click', async () => {
         const cardId = parseInt((document.getElementById('edit-card-id') as HTMLInputElement).value);
-        const front = (document.getElementById('edit-card-front') as HTMLTextAreaElement).value.trim();
-        const back = (document.getElementById('edit-card-back') as HTMLTextAreaElement).value.trim();
+        const language_a = (document.getElementById('edit-card-language-a') as HTMLTextAreaElement).value.trim();
+        const language_b = (document.getElementById('edit-card-language-b') as HTMLTextAreaElement).value.trim();
+        const language_a_code = (document.getElementById('edit-card-language-a-code') as HTMLInputElement).value.trim() || 'en';
+        const language_b_code = (document.getElementById('edit-card-language-b-code') as HTMLInputElement).value.trim() || 'en';
+        const context = (document.getElementById('edit-card-context') as HTMLTextAreaElement).value.trim();
 
-        if (!front || !back) {
-            alert('Please fill in both front and back');
+        if (!language_a || !language_b) {
+            alert('Please fill in both language fields');
             return;
         }
 
@@ -212,7 +235,7 @@ function initCardEditing(deckId: number): void {
             updateBtn.textContent = 'Saving...';
             updateBtn.setAttribute('disabled', 'true');
 
-            await api.updateCard(cardId, front, back);
+            await api.updateCard(cardId, language_a, language_b, language_a_code, language_b_code, context);
 
             const modal = bootstrap.Modal.getInstance(document.getElementById('editCardModal')!);
             modal?.hide();
@@ -261,17 +284,6 @@ function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-function formatDate(date: Date): string {
-    const now = new Date();
-    const diffMs = date.getTime() - now.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return 'Overdue';
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    return `${diffDays} days`;
 }
 
 // ============================================================================
