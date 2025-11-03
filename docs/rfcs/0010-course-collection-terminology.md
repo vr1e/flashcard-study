@@ -43,6 +43,8 @@ Without distinct terminology and visual design, users won't grasp the core colla
 ```python
 # View update to include type information
 def list_decks(request):
+    from django.db.models import Q
+
     user_decks = Deck.objects.filter(user=request.user)
     partnership = Partnership.objects.filter(
         Q(user_a=request.user) | Q(user_b=request.user),
@@ -53,14 +55,17 @@ def list_decks(request):
     collections = []
 
     for deck in user_decks:
+        # Check if deck is shared via active partnership
+        is_shared = partnership and partnership.is_active and deck in partnership.decks.all()
+
         deck_data = {
             'id': deck.id,
             'name': deck.name,
-            'type': 'course' if partnership and deck in partnership.decks.all() else 'collection',
-            'is_shared': partnership and deck in partnership.decks.all()
+            'type': 'course' if is_shared else 'collection',
+            'is_shared': is_shared
         }
 
-        if deck_data['is_shared']:
+        if is_shared:
             courses.append(deck_data)
         else:
             collections.append(deck_data)
