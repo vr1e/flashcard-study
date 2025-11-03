@@ -10,11 +10,13 @@ Provides API endpoints and page views for:
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.db import transaction
 import json
 
-from .models import Deck, Card, StudySession, Review
+from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation
 
 
 # ============================================================================
@@ -25,10 +27,30 @@ from .models import Deck, Card, StudySession, Review
 def index(request):
     """
     Dashboard/home page.
-    Shows all user's decks with due card counts.
+    Shows all user's decks (personal and shared) with due card counts.
     """
-    decks = Deck.objects.filter(user=request.user).order_by('-updated_at')
-    return render(request, 'index.html', {'decks': decks})
+    from django.db.models import Q
+
+    # Get user's partnership
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    # Personal decks
+    personal_decks = Deck.objects.filter(
+        user=request.user,
+        partnerships__isnull=True
+    ).order_by('-updated_at')
+
+    # Shared decks
+    shared_decks = partnership.decks.all().order_by('-updated_at') if partnership else []
+
+    return render(request, 'index.html', {
+        'personal_decks': personal_decks,
+        'shared_decks': shared_decks,
+        'partnership': partnership,
+    })
 
 
 @login_required
@@ -37,7 +59,13 @@ def deck_detail(request, deck_id):
     Deck detail page.
     Shows all cards in a deck with management options.
     """
-    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    deck = get_object_or_404(Deck, id=deck_id)
+
+    # Check permissions
+    if not deck.can_view(request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You do not have access to this deck")
+
     return render(request, 'deck_detail.html', {'deck': deck})
 
 
@@ -47,7 +75,13 @@ def study_view(request, deck_id):
     Study session page.
     Interactive card study interface.
     """
-    deck = get_object_or_404(Deck, id=deck_id, user=request.user)
+    deck = get_object_or_404(Deck, id=deck_id)
+
+    # Check permissions
+    if not deck.can_view(request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You do not have access to this deck")
+
     return render(request, 'study.html', {'deck': deck})
 
 
@@ -97,6 +131,14 @@ def register(request):
     return render(request, 'register.html')
 
 
+def logout_view(request):
+    """
+    Logout view that accepts GET requests.
+    """
+    logout(request)
+    return redirect('login')
+
+
 # ============================================================================
 # Deck API Endpoints
 # ============================================================================
@@ -106,20 +148,56 @@ def register(request):
 def deck_list(request):
     """
     GET /api/decks/
-    Return all decks for the current user.
+    Return personal and shared decks for the current user.
     """
-    decks = Deck.objects.filter(user=request.user).order_by('-updated_at')
-    data = [{
-        'id': deck.id,
-        'title': deck.title,
-        'description': deck.description,
-        'created_at': deck.created_at.isoformat(),
-        'updated_at': deck.updated_at.isoformat(),
-        'total_cards': deck.total_cards(),
-        'cards_due': deck.cards_due_count(),
-    } for deck in decks]
+    from django.db.models import Q
 
-    return JsonResponse({'success': True, 'data': data})
+    # Get user's partnership
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    # Personal decks (created by user, not shared)
+    personal = Deck.objects.filter(
+        user=request.user,
+        partnerships__isnull=True
+    ).order_by('-updated_at')
+
+    # Shared decks (via partnership)
+    shared = partnership.decks.all().order_by('-updated_at') if partnership else Deck.objects.none()
+
+    partner = partnership.get_partner(request.user) if partnership else None
+
+    def serialize_deck(deck, is_shared=False):
+        result = {
+            'id': deck.id,
+            'title': deck.title,
+            'description': deck.description,
+            'created_at': deck.created_at.isoformat(),
+            'updated_at': deck.updated_at.isoformat(),
+            'total_cards': deck.total_cards(),
+            'cards_due': deck.cards_due_count(),
+        }
+        if is_shared:
+            result['is_shared'] = True
+            result['created_by'] = {
+                'id': deck.created_by.id,
+                'username': deck.created_by.username
+            } if deck.created_by else None
+            result['shared_with'] = {
+                'id': partner.id,
+                'username': partner.username
+            } if partner else None
+        return result
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'personal': [serialize_deck(d) for d in personal],
+            'shared': [serialize_deck(d, is_shared=True) for d in shared]
+        }
+    })
 
 
 @login_required
@@ -127,12 +205,15 @@ def deck_list(request):
 def deck_create(request):
     """
     POST /api/decks/create/
-    Create a new deck.
+    Create a new deck (personal or shared).
     """
+    from django.db.models import Q
+
     try:
         data = json.loads(request.body)
         title = data.get('title', '').strip()
         description = data.get('description', '').strip()
+        is_shared = data.get('shared', False)
 
         if not title:
             return JsonResponse({
@@ -140,11 +221,37 @@ def deck_create(request):
                 'error': {'code': 'INVALID_INPUT', 'message': 'Title is required'}
             }, status=400)
 
-        deck = Deck.objects.create(
-            user=request.user,
-            title=title,
-            description=description
-        )
+        # Check partnership exists before creating deck (if shared)
+        partner = None
+        partnership = None
+        if is_shared:
+            partnership = Partnership.objects.filter(
+                Q(user_a=request.user) | Q(user_b=request.user),
+                is_active=True
+            ).first()
+
+            if not partnership:
+                return JsonResponse({
+                    'success': False,
+                    'error': {
+                        'code': 'NO_PARTNERSHIP',
+                        'message': 'Cannot create shared deck without active partnership'
+                    }
+                }, status=400)
+
+            partner = partnership.get_partner(request.user)
+
+        # Create deck and link to partnership atomically
+        with transaction.atomic():
+            deck = Deck.objects.create(
+                user=request.user,
+                created_by=request.user,
+                title=title,
+                description=description
+            )
+
+            if is_shared and partnership:
+                partnership.decks.add(deck)
 
         return JsonResponse({
             'success': True,
@@ -152,6 +259,15 @@ def deck_create(request):
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': is_shared,
+                'created_by': {
+                    'id': request.user.id,
+                    'username': request.user.username
+                },
+                'shared_with': {
+                    'id': partner.id,
+                    'username': partner.username
+                } if partner else None,
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': 0,
@@ -174,13 +290,22 @@ def deck_detail_api(request, deck_id):
     Return deck details with cards.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this deck'}
+            }, status=403)
+
         return JsonResponse({
             'success': True,
             'data': {
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': deck.is_shared(),
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
@@ -202,7 +327,15 @@ def deck_update(request, deck_id):
     Update deck information.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to edit this deck'}
+            }, status=403)
+
         data = json.loads(request.body)
 
         title = data.get('title', '').strip()
@@ -220,6 +353,7 @@ def deck_update(request, deck_id):
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
+                'is_shared': deck.is_shared(),
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
@@ -247,7 +381,15 @@ def deck_delete(request, deck_id):
     Delete a deck and all its cards.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to delete this deck'}
+            }, status=403)
+
         deck.delete()
         return JsonResponse({'success': True, 'data': {'message': 'Deck deleted successfully'}})
     except Deck.DoesNotExist:
@@ -571,3 +713,221 @@ def deck_stats(request, deck_id):
             'success': False,
             'error': {'code': 'NOT_FOUND', 'message': 'Deck not found'}
         }, status=404)
+
+
+# ============================================================================
+# Partnership API Endpoints
+# ============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def partnership_invite(request):
+    """
+    POST /api/partnership/invite/
+    Create a new partnership invitation.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
+    # Check if user already has active partnership
+    existing = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).exists()
+
+    if existing:
+        return JsonResponse({
+            'success': False,
+            'error': {
+                'code': 'ALREADY_PARTNERED',
+                'message': 'You already have an active partnership'
+            }
+        }, status=400)
+
+    # Create invitation
+    invitation = PartnershipInvitation.objects.create(
+        inviter=request.user
+    )
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'code': invitation.code,
+            'expires_at': invitation.expires_at.isoformat(),
+            'created_at': invitation.created_at.isoformat()
+        }
+    }, status=201)
+
+
+@login_required
+@require_http_methods(["POST"])
+def partnership_accept(request):
+    """
+    POST /api/partnership/accept/
+    Accept a partnership invitation.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').upper().strip()
+
+        if not code:
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'INVALID_INPUT', 'message': 'Invitation code is required'}
+            }, status=400)
+
+        # Find invitation
+        try:
+            invitation = PartnershipInvitation.objects.get(code=code)
+        except PartnershipInvitation.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_CODE',
+                    'message': 'Invitation code not found or expired'
+                }
+            }, status=404)
+
+        # Validate invitation
+        if not invitation.is_valid():
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'EXPIRED',
+                    'message': 'This invitation has expired'
+                }
+            }, status=400)
+
+        if invitation.inviter == request.user:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'SELF_INVITATION',
+                    'message': 'Cannot accept your own invitation'
+                }
+            }, status=400)
+
+        # Check if acceptor already has partnership
+        existing = Partnership.objects.filter(
+            Q(user_a=request.user) | Q(user_b=request.user),
+            is_active=True
+        ).exists()
+
+        if existing:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'ALREADY_PARTNERED',
+                    'message': 'You already have an active partnership'
+                }
+            }, status=400)
+
+        # Create partnership
+        partnership = Partnership.objects.create(
+            user_a=invitation.inviter,
+            user_b=request.user
+        )
+
+        # Mark invitation as accepted
+        invitation.accepted_by = request.user
+        invitation.accepted_at = timezone.now()
+        invitation.save()
+
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'partnership_id': partnership.id,
+                'partner': {
+                    'id': invitation.inviter.id,
+                    'username': invitation.inviter.username,
+                    'email': invitation.inviter.email
+                },
+                'created_at': partnership.created_at.isoformat()
+            }
+        }, status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': {'code': 'INVALID_JSON', 'message': 'Invalid JSON in request body'}
+        }, status=400)
+
+
+@login_required
+@require_http_methods(["GET"])
+def partnership_get(request):
+    """
+    GET /api/partnership/
+    Get current partnership information.
+    """
+    from django.db.models import Q
+
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).prefetch_related('decks').first()
+
+    if not partnership:
+        return JsonResponse({
+            'success': True,
+            'data': None
+        })
+
+    partner = partnership.get_partner(request.user)
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'id': partnership.id,
+            'partner': {
+                'id': partner.id,
+                'username': partner.username,
+                'email': partner.email
+            },
+            'created_at': partnership.created_at.isoformat(),
+            'shared_decks_count': partnership.decks.count()
+        }
+    })
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def partnership_dissolve(request):
+    """
+    DELETE /api/partnership/dissolve/
+    Dissolve current partnership.
+    """
+    from django.db.models import Q
+
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).first()
+
+    if not partnership:
+        return JsonResponse({
+            'success': False,
+            'error': {
+                'code': 'NO_PARTNERSHIP',
+                'message': 'No active partnership found'
+            }
+        }, status=404)
+
+    # Count affected decks
+    decks_count = partnership.decks.count()
+
+    # Soft delete partnership
+    partnership.is_active = False
+    partnership.save()
+
+    # Clear deck associations (decks remain, just not shared)
+    partnership.decks.clear()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Partnership dissolved',
+        'decks_affected': decks_count
+    })

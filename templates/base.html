@@ -50,6 +50,9 @@
 								<i class="bi bi-graph-up"></i> Statistics
 							</a>
 						</li>
+						<li class="nav-item" id="partnership-nav-status">
+							<!-- Partnership status loaded by partnership.ts -->
+						</li>
 						<li class="nav-item">
 							<span class="nav-link">
 								<i class="bi bi-person"></i> {{ user.username }}
@@ -96,6 +99,18 @@
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 		<!-- CSRF Token for AJAX requests -->
-		{% csrf_token %} {% block extra_js %}{% endblock %}
+		{% csrf_token %}
+
+		<!-- Partnership module (navbar status) -->
+		{% if user.is_authenticated %}
+		<script type="module">
+			import { initNavbarPartnership } from "{% static 'js/partnership.js' %}";
+			document.addEventListener("DOMContentLoaded", () => {
+				initNavbarPartnership();
+			});
+		</script>
+		{% endif %}
+
+		{% block extra_js %}{% endblock %}
 	</body>
 </html>
