@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.db import transaction
 import json
 
 from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation
@@ -220,16 +221,9 @@ def deck_create(request):
                 'error': {'code': 'INVALID_INPUT', 'message': 'Title is required'}
             }, status=400)
 
-        # Create deck
-        deck = Deck.objects.create(
-            user=request.user,
-            created_by=request.user,
-            title=title,
-            description=description
-        )
-
-        # Link to partnership if shared
+        # Check partnership exists before creating deck (if shared)
         partner = None
+        partnership = None
         if is_shared:
             partnership = Partnership.objects.filter(
                 Q(user_a=request.user) | Q(user_b=request.user),
@@ -237,7 +231,6 @@ def deck_create(request):
             ).first()
 
             if not partnership:
-                deck.delete()  # Rollback
                 return JsonResponse({
                     'success': False,
                     'error': {
@@ -246,8 +239,19 @@ def deck_create(request):
                     }
                 }, status=400)
 
-            partnership.decks.add(deck)
             partner = partnership.get_partner(request.user)
+
+        # Create deck and link to partnership atomically
+        with transaction.atomic():
+            deck = Deck.objects.create(
+                user=request.user,
+                created_by=request.user,
+                title=title,
+                description=description
+            )
+
+            if is_shared and partnership:
+                partnership.decks.add(deck)
 
         return JsonResponse({
             'success': True,
