@@ -68,16 +68,16 @@ jobs:
           PA_USERNAME: ${{ secrets.PA_USERNAME }}
           PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
         run: |
-          echo "Uploading compiled JavaScript files to static_collected..."
+          echo "Uploading compiled JavaScript files..."
 
           for file in static/js/*.js; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "  → Uploading $filename"
 
-              # Upload directly to static_collected/js/ (final serving location)
+              # Upload to static/js/ (source location for collectstatic)
               response=$(curl -w "\n%{http_code}" -X POST \
-                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/files/path/home/${PA_USERNAME}/flashcard-study/static_collected/js/$filename" \
+                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/files/path/home/${PA_USERNAME}/flashcard-study/static/js/$filename" \
                 -H "Authorization: Token ${PA_API_TOKEN}" \
                 -F "content=@$file" \
                 2>&1)
