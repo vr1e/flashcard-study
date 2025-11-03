@@ -68,15 +68,16 @@ jobs:
           PA_USERNAME: ${{ secrets.PA_USERNAME }}
           PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
         run: |
-          echo "Uploading compiled JavaScript files..."
+          echo "Uploading compiled JavaScript files to static_collected..."
 
           for file in static/js/*.js; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "  → Uploading $filename"
 
+              # Upload directly to static_collected/js/ (final serving location)
               response=$(curl -w "\n%{http_code}" -X POST \
-                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/files/path/home/${PA_USERNAME}/flashcard-study/$file" \
+                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/files/path/home/${PA_USERNAME}/flashcard-study/static_collected/js/$filename" \
                 -H "Authorization: Token ${PA_API_TOKEN}" \
                 -F "content=@$file" \
                 2>&1)
@@ -94,73 +95,6 @@ jobs:
           done
 
           echo "All files uploaded successfully!"
-
-      - name: Run deployment script on PythonAnywhere
-        env:
-          PA_USERNAME: ${{ secrets.PA_USERNAME }}
-          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
-        run: |
-          echo "Cleaning up old consoles..."
-
-          # Get list of existing consoles
-          consoles=$(curl -s -X GET \
-            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
-            -H "Authorization: Token ${PA_API_TOKEN}")
-
-          # Delete all existing consoles
-          echo "$consoles" | jq -r '.[].id' | while read console_id; do
-            if [ ! -z "$console_id" ]; then
-              echo "  → Deleting console $console_id"
-              curl -s -X DELETE \
-                "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${console_id}/" \
-                -H "Authorization: Token ${PA_API_TOKEN}"
-            fi
-          done
-
-          echo "Creating bash console..."
-
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
-            -H "Authorization: Token ${PA_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"executable": "bash"}' \
-            2>&1)
-
-          http_code=$(echo "$response" | tail -n1)
-
-          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
-            response_body=$(echo "$response" | sed '$d')
-
-            # DEBUG: Show what PythonAnywhere actually returned
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "DEBUG: Raw API Response:"
-            echo "$response_body"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            console_id=$(echo "$response_body" | jq -r '.id // empty')
-
-            if [ -z "$console_id" ] || [ "$console_id" = "null" ]; then
-              echo "❌ Failed to extract console ID from response"
-              echo "$response_body"
-              exit 1
-            fi
-          else
-            echo "❌ Failed to create console (HTTP $http_code)"
-            echo "$response"
-            exit 1
-          fi
-
-          echo "Created console: $console_id"
-          echo "Sending deployment command..."
-
-          curl -s -X POST \
-            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${console_id}/send_input/" \
-            -H "Authorization: Token ${PA_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"input\": \"/home/${PA_USERNAME}/deploy.sh\\n\"}" \
-            > /dev/null
-
-          echo "Deployment script triggered"
 
       - name: Reload web app
         env:
@@ -195,7 +129,6 @@ jobs:
           echo "✓ Tests passed"
           echo "✓ TypeScript compiled"
           echo "✓ JavaScript uploaded to PythonAnywhere"
-          echo "✓ Deployment script executed"
           echo "✓ Web app reloaded"
           echo ""
           echo "🌐 Live at: https://${{ secrets.PA_DOMAIN }}"
