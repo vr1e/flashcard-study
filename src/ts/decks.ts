@@ -20,9 +20,12 @@ async function loadDecks(): Promise<void> {
     if (!deckGrid) return;
 
     try {
-        const decks = await api.getDecks();
+        const response = await api.getDecks();
+        const personalDecks = response.personal || [];
+        const sharedDecks = response.shared || [];
+        const allDecks = [...personalDecks, ...sharedDecks];
 
-        if (decks.length === 0) {
+        if (allDecks.length === 0) {
             deckGrid.innerHTML = `
                 <div class="col-12 text-center py-5">
                     <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
@@ -33,7 +36,11 @@ async function loadDecks(): Promise<void> {
             return;
         }
 
-        deckGrid.innerHTML = decks.map(deck => createDeckCard(deck)).join('');
+        // Mark shared decks
+        const personalCards = personalDecks.map(deck => createDeckCard(deck, false));
+        const sharedCards = sharedDecks.map(deck => createDeckCard(deck, true));
+
+        deckGrid.innerHTML = [...personalCards, ...sharedCards].join('');
 
     } catch (error) {
         console.error('Failed to load decks:', error);
@@ -50,12 +57,23 @@ async function loadDecks(): Promise<void> {
 /**
  * Create HTML for a single deck card
  */
-function createDeckCard(deck: any): string {
+function createDeckCard(deck: any, isShared: boolean = false): string {
+    const sharedBadge = isShared
+        ? `<span class="badge bg-info"><i class="bi bi-people-fill"></i> Shared</span> `
+        : '';
+
+    const creatorInfo = (isShared && deck.created_by)
+        ? `<small class="text-muted d-block">Created by @${escapeHtml(deck.created_by.username)}</small>`
+        : '';
+
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card deck-card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">${escapeHtml(deck.title)}</h5>
+                    <h5 class="card-title">
+                        ${sharedBadge}${escapeHtml(deck.title)}
+                    </h5>
+                    ${creatorInfo}
                     <p class="card-text text-muted">${escapeHtml(deck.description) || 'No description'}</p>
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -100,12 +118,14 @@ function initDeckCreation(): void {
     const createBtn = document.getElementById('create-deck-btn');
     const titleInput = document.getElementById('deck-title') as HTMLInputElement;
     const descInput = document.getElementById('deck-description') as HTMLTextAreaElement;
+    const sharedCheckbox = document.getElementById('deck-shared') as HTMLInputElement;
 
     if (!createBtn) return;
 
     createBtn.addEventListener('click', async () => {
         const title = titleInput.value.trim();
         const description = descInput.value.trim();
+        const isShared = sharedCheckbox?.checked || false;
 
         if (!title) {
             alert('Please enter a deck title');
@@ -116,7 +136,7 @@ function initDeckCreation(): void {
             createBtn.textContent = 'Creating...';
             createBtn.setAttribute('disabled', 'true');
 
-            await api.createDeck(title, description);
+            await api.createDeck(title, description, isShared);
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('createDeckModal')!);
@@ -125,6 +145,7 @@ function initDeckCreation(): void {
             // Reset form
             titleInput.value = '';
             descInput.value = '';
+            if (sharedCheckbox) sharedCheckbox.checked = false;
 
             // Reload decks
             await loadDecks();
