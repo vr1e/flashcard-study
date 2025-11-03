@@ -102,16 +102,26 @@ jobs:
         run: |
           echo "Creating bash console..."
 
-          response=$(curl -s -X POST \
+          response=$(curl -w "\n%{http_code}" -X POST \
             "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/" \
             -H "Authorization: Token ${PA_API_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{"executable": "bash"}')
+            -d '{"executable": "bash"}' \
+            2>&1)
 
-          console_id=$(echo "$response" | jq -r '.id // empty')
+          http_code=$(echo "$response" | tail -n1)
 
-          if [ -z "$console_id" ] || [ "$console_id" = "null" ]; then
-            echo "Failed to create console. Response:"
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+            response_body=$(echo "$response" | sed '$d')
+            console_id=$(echo "$response_body" | jq -r '.id // empty')
+
+            if [ -z "$console_id" ] || [ "$console_id" = "null" ]; then
+              echo "❌ Failed to extract console ID from response"
+              echo "$response_body"
+              exit 1
+            fi
+          else
+            echo "❌ Failed to create console (HTTP $http_code)"
             echo "$response"
             exit 1
           fi
