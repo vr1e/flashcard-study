@@ -14,6 +14,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+import secrets
+import string
 
 
 class Deck(models.Model):
@@ -234,8 +236,6 @@ class PartnershipInvitation(models.Model):
     @staticmethod
     def generate_code():
         """Generate unique 6-character alphanumeric code."""
-        import secrets
-        import string
         while True:
             code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             if not PartnershipInvitation.objects.filter(code=code).exists():

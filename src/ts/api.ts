@@ -276,15 +276,9 @@ class FlashcardAPI {
 	}
 
 	async getPartnership(): Promise<Partnership | null> {
-		try {
-			return await this.fetch<Partnership>(`${this.baseURL}/partnership/`);
-		} catch (error) {
-			// If no partnership exists, backend returns error, return null
-			if (error instanceof ApiError && error.code === "NO_PARTNERSHIP") {
-				return null;
-			}
-			throw error;
-		}
+		const response = await this.fetch<Partnership | null>(`${this.baseURL}/partnership/`);
+		// Backend returns null when no partnership exists
+		return response;
 	}
 
 	async dissolvePartnership(): Promise<void> {
