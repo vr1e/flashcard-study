@@ -94,6 +94,15 @@ def stats_view(request):
     return render(request, 'stats.html')
 
 
+@login_required
+def partnership_view(request):
+    """
+    Partnership management page.
+    Create, accept, and manage partnerships.
+    """
+    return render(request, 'partnership.html')
+
+
 def register(request):
     """
     User registration page.
