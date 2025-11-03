@@ -113,6 +113,13 @@ jobs:
 
           if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
             response_body=$(echo "$response" | sed '$d')
+
+            # DEBUG: Show what PythonAnywhere actually returned
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "DEBUG: Raw API Response:"
+            echo "$response_body"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
             console_id=$(echo "$response_body" | jq -r '.id // empty')
 
             if [ -z "$console_id" ] || [ "$console_id" = "null" ]; then
