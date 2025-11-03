@@ -31,7 +31,7 @@ GitHub Actions CI/CD pipeline that builds TypeScript in CI, uploads compiled JS 
 git push → GitHub Actions → PythonAnywhere
            ├─ Run tests
            ├─ Build TypeScript
-           ├─ Upload to static_collected/js/
+           ├─ Upload to static/js/
            └─ Reload web app
 ```
 
@@ -39,6 +39,7 @@ git push → GitHub Actions → PythonAnywhere
 
 - Database migrations: `python manage.py migrate`
 - Python dependencies: `pip install -r requirements.txt`
+- Static file collection: `python manage.py collectstatic --noinput --clear`
 
 These are infrequent operations, so manual execution is acceptable.
 
@@ -61,8 +62,8 @@ These are infrequent operations, so manual execution is acceptable.
 
 **3. Upload to static/ vs static_collected/**
 
-- ✅ Chose static_collected/: direct upload to serving directory
-- No need for collectstatic step in CI
+- ✅ Chose static/: upload to source directory, then run collectstatic manually
+- Allows Django's manifest storage to work correctly for cache-busting
 
 **4. Console API for migrations vs manual** (2025-11-03 revision)
 
@@ -100,7 +101,8 @@ These are infrequent operations, so manual execution is acceptable.
 
 - Database migrations: `python manage.py migrate` (when models change)
 - Dependencies: `pip install -r requirements.txt` (when requirements.txt changes)
-- Run these via PythonAnywhere console or bash console
+- Static files: `python manage.py collectstatic --noinput --clear` (after JS updates or CSS changes)
+- Run these via PythonAnywhere bash console
 
 ---
 
