@@ -64,9 +64,11 @@ class StudyController {
 		this.flipped = false;
 		this.cardStartTime = Date.now();
 
-		// Update card content
-		document.getElementById("card-front-text")!.textContent = card.front;
-		document.getElementById("card-back-text")!.textContent = card.back;
+		// Update card content (support both old and new formats)
+		const question = card.question || card.front;
+		const answer = card.answer || card.back;
+		document.getElementById("card-front-text")!.textContent = question;
+		document.getElementById("card-back-text")!.textContent = answer;
 
 		// Reset card to front
 		const flashcard = document.getElementById("flashcard")!;
@@ -108,6 +110,7 @@ class StudyController {
 				session_id: this.sessionId,
 				quality: quality,
 				time_taken: timeSpent,
+				direction: card.direction || 'A_TO_B', // Default to A_TO_B for backward compatibility
 			});
 
 			// Track quality for average calculation

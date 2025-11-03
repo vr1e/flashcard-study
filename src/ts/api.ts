@@ -41,26 +41,50 @@ interface Deck {
 
 interface Card {
 	id: number;
-	deck: number;
-	front: string;
-	back: string;
-	ease_factor: number;
-	interval: number;
-	repetitions: number;
-	next_review: string;
+	// New language fields
+	language_a?: string;
+	language_b?: string;
+	language_a_code?: string;
+	language_b_code?: string;
+	context?: string;
+	// Legacy fields (for backward compatibility)
+	front?: string;
+	back?: string;
 	created_at: string;
+	updated_at?: string;
 }
+
+type StudyDirection = 'A_TO_B' | 'B_TO_A' | 'RANDOM';
 
 interface StudySession {
 	session_id: number;
-	cards: Card[];
-	total_due: number;
+	deck: {
+		id: number;
+		title: string;
+		language_a: string;
+		language_b: string;
+	};
+	direction: StudyDirection;
+	cards: Array<{
+		id: number;
+		question: string;
+		answer: string;
+		context?: string;
+		direction: 'A_TO_B' | 'B_TO_A';
+	}>;
 }
 
 interface ReviewSubmission {
 	session_id: number;
 	quality: number;
 	time_taken: number;
+	direction: 'A_TO_B' | 'B_TO_A';
+}
+
+interface CardsResponse {
+	cards: Card[];
+	language_a_code: string;
+	language_b_code: string;
 }
 
 interface ApiResponse<T> {
@@ -199,21 +223,49 @@ class FlashcardAPI {
 	// Card Endpoints
 	// ========================================================================
 
-	async getCards(deckId: number): Promise<Card[]> {
-		return this.fetch<Card[]>(`${this.baseURL}/decks/${deckId}/cards/`);
+	async getCards(deckId: number): Promise<CardsResponse> {
+		return this.fetch<CardsResponse>(`${this.baseURL}/decks/${deckId}/cards/`);
 	}
 
-	async createCard(deckId: number, front: string, back: string): Promise<Card> {
+	async createCard(
+		deckId: number,
+		languageA: string,
+		languageB: string,
+		languageACode: string = 'en',
+		languageBCode: string = 'en',
+		context: string = ''
+	): Promise<Card> {
 		return this.fetch<Card>(`${this.baseURL}/decks/${deckId}/cards/create/`, {
 			method: "POST",
-			body: JSON.stringify({ front, back }),
+			body: JSON.stringify({
+				language_a: languageA,
+				language_b: languageB,
+				language_a_code: languageACode,
+				language_b_code: languageBCode,
+				context
+			}),
 		});
 	}
 
-	async updateCard(cardId: number, front: string, back: string): Promise<Card> {
+	async updateCard(
+		cardId: number,
+		languageA: string,
+		languageB: string,
+		languageACode?: string,
+		languageBCode?: string,
+		context?: string
+	): Promise<Card> {
+		const body: any = {
+			language_a: languageA,
+			language_b: languageB
+		};
+		if (languageACode) body.language_a_code = languageACode;
+		if (languageBCode) body.language_b_code = languageBCode;
+		if (context !== undefined) body.context = context;
+
 		return this.fetch<Card>(`${this.baseURL}/cards/${cardId}/update/`, {
 			method: "PUT",
-			body: JSON.stringify({ front, back }),
+			body: JSON.stringify(body),
 		});
 	}
 
@@ -227,17 +279,18 @@ class FlashcardAPI {
 	// Study Session Endpoints
 	// ========================================================================
 
-	async startStudySession(deckId: number): Promise<StudySession> {
+	async startStudySession(deckId: number, direction: StudyDirection = 'A_TO_B'): Promise<StudySession> {
 		return this.fetch<StudySession>(`${this.baseURL}/decks/${deckId}/study/`, {
 			method: "POST",
+			body: JSON.stringify({ direction }),
 		});
 	}
 
 	async submitReview(
 		cardId: number,
 		review: ReviewSubmission
-	): Promise<Card> {
-		return this.fetch<Card>(
+	): Promise<{ next_review: string; interval: number; ease_factor: number }> {
+		return this.fetch<{ next_review: string; interval: number; ease_factor: number }>(
 			`${this.baseURL}/cards/${cardId}/review/`,
 			{
 				method: "POST",

@@ -54,7 +54,8 @@ async function loadCards(deckId: number): Promise<void> {
     if (!cardsList) return;
 
     try {
-        const cards = await api.getCards(deckId);
+        const response = await api.getCards(deckId);
+        const cards = response.cards;
 
         if (cards.length === 0) {
             cardsList.innerHTML = `
@@ -66,7 +67,7 @@ async function loadCards(deckId: number): Promise<void> {
             return;
         }
 
-        cardsList.innerHTML = cards.map(card => createCardItem(card)).join('');
+        cardsList.innerHTML = cards.map((card: any) => createCardItem(card)).join('');
 
     } catch (error) {
         console.error('Failed to load cards:', error);
