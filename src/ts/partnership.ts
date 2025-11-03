@@ -203,13 +203,17 @@ export async function acceptInvitation(): Promise<void> {
 	try {
 		await api.acceptPartnershipInvite(code);
 
-		// Close modal and reload page to show new partnership
+		// Close modal and update partnership state/UI dynamically
 		const modalElement = document.getElementById("acceptModal") as HTMLElement;
 		const modal = (window as any).bootstrap.Modal.getInstance(modalElement);
 		modal.hide();
 
-		// Reload page to refresh partnership status
-		window.location.reload();
+		// Fetch updated partnership and re-render navbar status
+		currentPartnership = await api.getPartnership();
+		const navbarContainer = document.getElementById("partnership-nav-status");
+		if (navbarContainer) {
+			renderNavbarStatus(navbarContainer, currentPartnership);
+		}
 	} catch (error: any) {
 		errorElement.textContent = error.message || "Failed to accept invitation";
 		errorElement.style.display = "block";
