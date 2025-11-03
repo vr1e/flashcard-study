@@ -18,7 +18,6 @@ django.setup()
 
 from django.contrib.auth.models import User
 from flashcards.models import Partnership, PartnershipInvitation, Deck
-from django.db.models import Q
 
 def print_header(text):
     print("\n" + "=" * 60)
