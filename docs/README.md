@@ -22,10 +22,9 @@ The `rfcs/` directory contains technical design documents that describe features
 | [0006](rfcs/0006-automated-deployment.md)            | Automated Deployment          | ✅ Implemented | 90%      | GitHub Actions CI/CD, manual migrations required          |
 | [0007](rfcs/0007-partnership-shared-decks.md)        | Partnership/Shared Decks      | ✅ Implemented | 100%     | Full partnership system with UI (PR #3)                   |
 | [0008](rfcs/0008-bidirectional-language-learning.md) | Bidirectional Learning        | ✅ Implemented | 100%     | Language fields, direction selection, per-user progress   |
-| [0009](rfcs/0009-data-migration-strategy.md)         | Data Migration Strategy       | ⏭️ Superseded  | N/A      | Not needed - direct implementation used instead           |
-| [0010](rfcs/0010-course-collection-terminology.md)   | Course/Collection Terminology | 🔮 Planned     | 0%       | UX vision, depends on RFC 0007 completion                 |
+| [0009](rfcs/0009-course-collection-terminology.md)   | Course/Collection Terminology | 🔮 Planned     | 0%       | UX vision, depends on RFC 0007 completion                 |
 
-**Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned | ⏭️ Superseded
+**Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned
 
 ---
 
@@ -56,7 +55,7 @@ The `rfcs/` directory contains technical design documents that describe features
 
 #### 🔮 Future Features (Not Started)
 
-- **RFC 0010**: UI/UX terminology changes for partnership features
+- **RFC 0009**: UI/UX terminology changes for partnership features
 
 ---
 
@@ -80,11 +79,11 @@ The `rfcs/` directory contains technical design documents that describe features
    - Input validation for card text length
    - **Effort**: 4-6 hours
 
-#### Phase 2: UX Polish (RFC 0010)
+#### Phase 2: UX Polish (RFC 0009)
 
 **Goal**: Complete couples learning platform UX
 
-1. **RFC 0010**: UX improvements
+1. **RFC 0009**: UX improvements
    - Terminology changes ("Decks" → "Courses/Collections")
    - Color-coded shared vs personal decks
    - Progressive disclosure of partnership features
