@@ -22,10 +22,10 @@ The `rfcs/` directory contains technical design documents that describe features
 | [0006](rfcs/0006-automated-deployment.md)            | Automated Deployment          | ✅ Implemented | 90%      | GitHub Actions CI/CD, manual migrations required          |
 | [0007](rfcs/0007-partnership-shared-decks.md)        | Partnership/Shared Decks      | ✅ Implemented | 100%     | Full partnership system with UI (PR #3)                   |
 | [0008](rfcs/0008-bidirectional-language-learning.md) | Bidirectional Learning        | ✅ Implemented | 100%     | Language fields, direction selection, per-user progress   |
-| [0009](rfcs/0009-data-migration-strategy.md)         | Data Migration Strategy       | 📝 Draft       | 0%       | Migration plan documented, not executed                   |
+| [0009](rfcs/0009-data-migration-strategy.md)         | Data Migration Strategy       | ⏭️ Superseded  | N/A      | Not needed - direct implementation used instead           |
 | [0010](rfcs/0010-course-collection-terminology.md)   | Course/Collection Terminology | 🔮 Planned     | 0%       | UX vision, depends on RFC 0007 completion                 |
 
-**Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned
+**Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned | ⏭️ Superseded
 
 ---
 
@@ -56,7 +56,6 @@ The `rfcs/` directory contains technical design documents that describe features
 
 #### 🔮 Future Features (Not Started)
 
-- **RFC 0009**: Data migration to support RFC 0008
 - **RFC 0010**: UI/UX terminology changes for partnership features
 
 ---
@@ -81,17 +80,11 @@ The `rfcs/` directory contains technical design documents that describe features
    - Input validation for card text length
    - **Effort**: 4-6 hours
 
-#### Phase 2: Data Migration & UX Polish (RFCs 0009-0010)
+#### Phase 2: UX Polish (RFC 0010)
 
-**Goal**: Complete couples learning platform
+**Goal**: Complete couples learning platform UX
 
-1. **RFC 0009**: Execute data migration
-
-   - Migrate existing cards to new language schema
-   - Preserve SM-2 progress data
-   - **Effort**: 2-3 days
-
-2. **RFC 0010**: UX improvements
+1. **RFC 0010**: UX improvements
    - Terminology changes ("Decks" → "Courses/Collections")
    - Color-coded shared vs personal decks
    - Progressive disclosure of partnership features

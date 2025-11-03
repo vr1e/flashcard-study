@@ -5,10 +5,24 @@
 - **RFC Number**: 0009
 - **Title**: Data Migration Strategy for Couples Language Learning
 - **Author**: Development Team
-- **Status**: Draft
+- **Status**: Superseded
 - **Created**: 2025-11-02
-- **Last Updated**: 2025-11-02
+- **Last Updated**: 2025-11-03
+- **Superseded By**: Direct implementation in migration 0004
 - **Depends On**: RFC 0007 (Partnership), RFC 0008 (Bidirectional Learning)
+
+## Note
+
+**This RFC is no longer applicable.**
+
+During implementation, RFC 0007 and RFC 0008 were implemented directly without requiring a phased data migration strategy, because:
+
+1. **No production data existed** when the new schema was introduced
+2. **Additive approach used**: New fields (`language_a`, `language_b`, language codes) were added alongside legacy fields (`front`, `back`) in migration `0004`
+3. **Backward compatibility maintained**: Application code supports both old and new field formats
+4. **No breaking changes required**: Legacy fields remain for backward compatibility
+
+If future production data migration becomes necessary, this RFC provides a comprehensive strategy for reference.
 
 ## Summary
 
