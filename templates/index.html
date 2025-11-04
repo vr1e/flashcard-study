@@ -23,9 +23,9 @@
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>My Decks</h1>
+            <h1>My Study Materials</h1>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDeckModal">
-                <i class="bi bi-plus-circle"></i> Create New Deck
+                <i class="bi bi-plus-circle"></i> Create New
             </button>
         </div>
     </div>
@@ -41,29 +41,29 @@
     </div>
 </div>
 
-<!-- Shared Decks Section -->
-<div id="shared-decks-section" style="display: none;">
+<!-- Courses Section (Learning Buddy) -->
+<div id="courses-section" class="buddy-section" style="display: none;">
     <div class="row mb-2">
         <div class="col-12">
-            <h4><i class="bi bi-people-fill text-info"></i> Shared Decks</h4>
-            <p class="text-muted small">Decks you share with your partner</p>
+            <h4><i class="bi bi-people-fill"></i> 🤝 Learning Buddy</h4>
+            <p class="text-muted small">Courses you share with your learning buddy</p>
         </div>
     </div>
-    <div id="shared-decks-grid" class="row g-4 mb-5">
-        <!-- Shared decks will be loaded here -->
+    <div id="courses-grid" class="row g-4 mb-5">
+        <!-- Courses will be loaded here -->
     </div>
 </div>
 
-<!-- Personal Decks Section -->
-<div id="personal-decks-section" style="display: none;">
+<!-- Collections Section (Personal Study) -->
+<div id="collections-section" class="personal-section" style="display: none;">
     <div class="row mb-2">
         <div class="col-12">
-            <h4><i class="bi bi-person-fill"></i> Personal Decks</h4>
-            <p class="text-muted small">Private decks only you can access</p>
+            <h4><i class="bi bi-book-fill"></i> 📚 Personal Study</h4>
+            <p class="text-muted small">Private collections only you can access</p>
         </div>
     </div>
-    <div id="personal-decks-grid" class="row g-4">
-        <!-- Personal decks will be loaded here -->
+    <div id="collections-grid" class="row g-4">
+        <!-- Collections will be loaded here -->
     </div>
 </div>
 
@@ -71,8 +71,8 @@
 <div id="no-decks" class="row g-4" style="display: none;">
     <div class="col-12 text-center py-5">
         <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
-        <h3 class="mt-3">No decks yet</h3>
-        <p class="text-muted">Create your first deck to get started!</p>
+        <h3 class="mt-3">No courses or collections yet</h3>
+        <p class="text-muted">Create your first course or collection to get started!</p>
     </div>
 </div>
 
@@ -81,7 +81,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create New Deck</h5>
+                <h5 class="modal-title">Create New Course or Collection</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -98,16 +98,16 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="deck-shared" value="shared">
                             <label class="form-check-label" for="deck-shared">
-                                <i class="bi bi-people"></i> Share with partner
+                                <i class="bi bi-people"></i> Create as shared course
                             </label>
-                            <div class="form-text" id="shared-deck-help">Deck will be accessible by both you and your partner</div>
+                            <div class="form-text" id="shared-deck-help">Course will be accessible by both you and your learning buddy</div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="create-deck-btn">Create Deck</button>
+                <button type="button" class="btn btn-primary" id="create-deck-btn">Create</button>
             </div>
         </div>
     </div>
@@ -118,7 +118,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Deck</h5>
+                <h5 class="modal-title">Edit Course/Collection</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -229,7 +229,7 @@
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <strong>Warning:</strong> This action will end your partnership.
                 </div>
-                <p>Shared decks will become personal to the original creator and will no longer be accessible to the other partner. You won't be able to create new shared decks together.</p>
+                <p>Shared courses will become personal collections for the original creator and will no longer be accessible to your learning buddy. You won't be able to create new shared courses together.</p>
                 <p class="mb-0"><strong>Are you sure you want to dissolve this partnership?</strong></p>
                 <div id="dissolve-error" class="alert alert-danger mt-3" style="display: none;"></div>
             </div>

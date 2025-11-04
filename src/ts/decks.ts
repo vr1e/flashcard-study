@@ -17,39 +17,39 @@ declare const bootstrap: any;
  */
 async function loadDecks(): Promise<void> {
     const loading = document.getElementById('decks-loading');
-    const sharedSection = document.getElementById('shared-decks-section');
-    const personalSection = document.getElementById('personal-decks-section');
+    const coursesSection = document.getElementById('courses-section');
+    const collectionsSection = document.getElementById('collections-section');
     const noDecks = document.getElementById('no-decks');
-    const sharedGrid = document.getElementById('shared-decks-grid');
-    const personalGrid = document.getElementById('personal-decks-grid');
+    const coursesGrid = document.getElementById('courses-grid');
+    const collectionsGrid = document.getElementById('collections-grid');
 
-    if (!loading || !sharedSection || !personalSection || !noDecks || !sharedGrid || !personalGrid) return;
+    if (!loading || !coursesSection || !collectionsSection || !noDecks || !coursesGrid || !collectionsGrid) return;
 
     try {
         const response = await api.getDecks();
-        const personalDecks = response.personal || [];
-        const sharedDecks = response.shared || [];
+        const collections = response.collections || [];
+        const courses = response.courses || [];
 
         // Hide loading
         loading.style.display = 'none';
 
-        if (personalDecks.length === 0 && sharedDecks.length === 0) {
+        if (collections.length === 0 && courses.length === 0) {
             noDecks.style.display = 'block';
             return;
         }
 
-        // Show shared decks if any
-        if (sharedDecks.length > 0) {
-            sharedSection.style.display = 'block';
-            const sharedCards = sharedDecks.map(deck => createDeckCard(deck, true));
-            sharedGrid.innerHTML = sharedCards.join('');
+        // Show courses (shared decks) if any
+        if (courses.length > 0) {
+            coursesSection.style.display = 'block';
+            const courseCards = courses.map(deck => createDeckCard(deck, true));
+            coursesGrid.innerHTML = courseCards.join('');
         }
 
-        // Show personal decks if any
-        if (personalDecks.length > 0) {
-            personalSection.style.display = 'block';
-            const personalCards = personalDecks.map(deck => createDeckCard(deck, false));
-            personalGrid.innerHTML = personalCards.join('');
+        // Show collections (personal decks) if any
+        if (collections.length > 0) {
+            collectionsSection.style.display = 'block';
+            const collectionCards = collections.map(deck => createDeckCard(deck, false));
+            collectionsGrid.innerHTML = collectionCards.join('');
         }
 
     } catch (error) {
@@ -67,12 +67,12 @@ async function loadDecks(): Promise<void> {
 /**
  * Create HTML for a single deck card
  */
-function createDeckCard(deck: any, isShared: boolean = false): string {
-    const sharedBadge = isShared
-        ? `<span class="badge bg-info"><i class="bi bi-people-fill"></i> Shared</span> `
-        : '';
+function createDeckCard(deck: any, isCourse: boolean = false): string {
+    const typeBadge = isCourse
+        ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Course</span> `
+        : `<span class="badge collection-badge"><i class="bi bi-book"></i> Collection</span> `;
 
-    const creatorInfo = (isShared && deck.created_by)
+    const creatorInfo = (isCourse && deck.created_by)
         ? `<small class="text-muted d-block">Created by @${escapeHtml(deck.created_by.username)}</small>`
         : '';
 
@@ -81,7 +81,7 @@ function createDeckCard(deck: any, isShared: boolean = false): string {
             <div class="card deck-card h-100">
                 <div class="card-body">
                     <h5 class="card-title">
-                        ${sharedBadge}${escapeHtml(deck.title)}
+                        ${typeBadge}${escapeHtml(deck.title)}
                     </h5>
                     ${creatorInfo}
                     <p class="card-text text-muted">${escapeHtml(deck.description) || 'No description'}</p>

@@ -22,7 +22,8 @@ async function loadDeckDetails(deckId: number): Promise<void> {
         // Update page elements
         document.getElementById('deck-title')!.textContent = deck.title;
         document.getElementById('deck-description')!.textContent = deck.description || 'No description';
-        document.getElementById('deck-title-breadcrumb')!.textContent = deck.title;
+        const deckType = deck.type === 'course' ? 'Course' : 'Collection';
+        document.getElementById('deck-title-breadcrumb')!.textContent = `${deckType}: ${deck.title}`;
         document.getElementById('cards-due-badge')!.textContent =
             `${deck.cards_due} card${deck.cards_due === 1 ? '' : 's'} due`;
         document.getElementById('total-cards-badge')!.textContent =

@@ -187,9 +187,10 @@ def deck_list(request):
             'updated_at': deck.updated_at.isoformat(),
             'total_cards': deck.total_cards(),
             'cards_due': deck.cards_due_count(),
+            'type': 'course' if is_shared else 'collection',
+            'is_shared': is_shared,
         }
         if is_shared:
-            result['is_shared'] = True
             result['created_by'] = {
                 'id': deck.created_by.id,
                 'username': deck.created_by.username
@@ -203,8 +204,8 @@ def deck_list(request):
     return JsonResponse({
         'success': True,
         'data': {
-            'personal': [serialize_deck(d) for d in personal],
-            'shared': [serialize_deck(d, is_shared=True) for d in shared]
+            'collections': [serialize_deck(d) for d in personal],
+            'courses': [serialize_deck(d, is_shared=True) for d in shared]
         }
     })
 

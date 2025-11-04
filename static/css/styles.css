@@ -144,3 +144,26 @@ main {
         margin-bottom: 0.25rem;
     }
 }
+
+/* Course/Collection Color Coding */
+.buddy-section {
+    border-left: 4px solid #ff8c42;
+    padding-left: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.personal-section {
+    border-left: 4px solid #0d6efd;
+    padding-left: 1.5rem;
+}
+
+/* Course and Collection Badges */
+.course-badge {
+    background-color: #ff8c42 !important;
+    color: white !important;
+}
+
+.collection-badge {
+    background-color: #0d6efd !important;
+    color: white !important;
+}

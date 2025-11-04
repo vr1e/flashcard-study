@@ -32,6 +32,7 @@ interface Deck {
 	cards_due: number;
 	created_at: string;
 	updated_at: string;
+	type?: 'course' | 'collection';
 	is_shared?: boolean;
 	created_by?: {
 		id: number;
@@ -122,8 +123,8 @@ interface PartnershipInvitation {
 }
 
 interface DecksResponse {
-	personal: Deck[];
-	shared: Deck[];
+	collections: Deck[];
+	courses: Deck[];
 }
 
 // ============================================================================
