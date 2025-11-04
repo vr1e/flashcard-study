@@ -16,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 import json
 
-from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation
+from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation, UserCardProgress
 
 
 # ============================================================================
@@ -94,6 +94,15 @@ def stats_view(request):
     return render(request, 'stats.html')
 
 
+@login_required
+def partnership_view(request):
+    """
+    Partnership management page.
+    Create, accept, and manage partnerships.
+    """
+    return render(request, 'partnership.html')
+
+
 def register(request):
     """
     User registration page.
@@ -104,8 +113,8 @@ def register(request):
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-        password_confirm = request.POST.get('password_confirm', '')
+        password = request.POST.get('password1', '')
+        password_confirm = request.POST.get('password2', '')
 
         # Validation
         if not username or not password:
@@ -408,24 +417,38 @@ def deck_delete(request, deck_id):
 def card_list(request, deck_id):
     """
     GET /api/decks/<deck_id>/cards/
-    Return all cards in a deck.
+    Return all cards in a deck with language fields.
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check permissions
+        if not deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this deck'}
+            }, status=403)
+
         cards = deck.cards.all().order_by('created_at')
         data = [{
             'id': card.id,
+            # Language fields
+            'language_a': card.language_a,
+            'language_b': card.language_b,
+            'context': card.context,
+            # Legacy fields for backward compatibility
             'front': card.front,
             'back': card.back,
             'created_at': card.created_at.isoformat(),
-            'ease_factor': card.ease_factor,
-            'interval': card.interval,
-            'repetitions': card.repetitions,
-            'next_review': card.next_review.isoformat(),
-            'is_due': card.is_due(),
+            'updated_at': card.updated_at.isoformat(),
         } for card in cards]
 
-        return JsonResponse({'success': True, 'data': data})
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'cards': data,
+            }
+        })
     except Deck.DoesNotExist:
         return JsonResponse({
             'success': False,
@@ -438,39 +461,75 @@ def card_list(request, deck_id):
 def card_create(request, deck_id):
     """
     POST /api/decks/<deck_id>/cards/create/
-    Create a new card in the deck.
+    Create a new card in the deck (supports both legacy and language formats).
     """
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
-        data = json.loads(request.body)
+        deck = Deck.objects.get(id=deck_id)
 
-        front = data.get('front', '').strip()
-        back = data.get('back', '').strip()
-
-        if not front or not back:
+        # Check permissions
+        if not deck.can_edit(request.user):
             return JsonResponse({
                 'success': False,
-                'error': {'code': 'INVALID_INPUT', 'message': 'Front and back are required'}
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to add cards to this deck'}
+            }, status=403)
+
+        data = json.loads(request.body)
+
+        # Support both legacy (front/back) and new (language_a/language_b) formats
+        language_a = data.get('language_a', data.get('front', '')).strip()
+        language_b = data.get('language_b', data.get('back', '')).strip()
+        context = data.get('context', '').strip()
+
+        if not language_a or not language_b:
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'INVALID_INPUT', 'message': 'Both language fields are required'}
             }, status=400)
 
         card = Card.objects.create(
             deck=deck,
-            front=front,
-            back=back
+            language_a=language_a,
+            language_b=language_b,
+            context=context,
+            # Legacy fields for backward compatibility
+            front=language_a,
+            back=language_b,
         )
+
+        # Create UserCardProgress for all users with access to this deck
+        from django.utils import timezone
+        users_with_access = [deck.user]  # Deck owner
+
+        # Add partner if deck is shared
+        partnership = deck.partnerships.filter(is_active=True).first()
+        if partnership:
+            partner = partnership.user_b if partnership.user_a == deck.user else partnership.user_a
+            users_with_access.append(partner)
+
+        # Create progress records for both directions for each user
+        for user in users_with_access:
+            UserCardProgress.objects.create(
+                user=user,
+                card=card,
+                study_direction='A_TO_B',
+                next_review=timezone.now()
+            )
+            UserCardProgress.objects.create(
+                user=user,
+                card=card,
+                study_direction='B_TO_A',
+                next_review=timezone.now()
+            )
 
         return JsonResponse({
             'success': True,
             'data': {
                 'id': card.id,
-                'front': card.front,
-                'back': card.back,
+                'language_a': card.language_a,
+                'language_b': card.language_b,
+                'context': card.context,
                 'created_at': card.created_at.isoformat(),
-                'ease_factor': card.ease_factor,
-                'interval': card.interval,
-                'repetitions': card.repetitions,
-                'next_review': card.next_review.isoformat(),
-                'is_due': card.is_due(),
+                'updated_at': card.updated_at.isoformat(),
             }
         }, status=201)
 
@@ -491,16 +550,31 @@ def card_create(request, deck_id):
 def card_update(request, card_id):
     """
     PUT/PATCH /api/cards/<card_id>/update/
-    Update card content.
+    Update card content (supports both legacy and language formats).
     """
     try:
-        card = Card.objects.get(id=card_id, deck__user=request.user)
+        card = Card.objects.get(id=card_id)
+
+        # Check permissions
+        if not card.deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to edit this card'}
+            }, status=403)
+
         data = json.loads(request.body)
 
-        if 'front' in data:
-            card.front = data['front'].strip()
-        if 'back' in data:
-            card.back = data['back'].strip()
+        # Support both legacy (front/back) and new (language_a/language_b) formats
+        if 'language_a' in data or 'front' in data:
+            card.language_a = data.get('language_a', data.get('front', card.language_a)).strip()
+            card.front = card.language_a  # Keep legacy field in sync
+
+        if 'language_b' in data or 'back' in data:
+            card.language_b = data.get('language_b', data.get('back', card.language_b)).strip()
+            card.back = card.language_b  # Keep legacy field in sync
+
+        if 'context' in data:
+            card.context = data['context'].strip()
 
         card.save()
 
@@ -508,14 +582,11 @@ def card_update(request, card_id):
             'success': True,
             'data': {
                 'id': card.id,
-                'front': card.front,
-                'back': card.back,
+                'language_a': card.language_a,
+                'language_b': card.language_b,
+                'context': card.context,
                 'created_at': card.created_at.isoformat(),
-                'ease_factor': card.ease_factor,
-                'interval': card.interval,
-                'repetitions': card.repetitions,
-                'next_review': card.next_review.isoformat(),
-                'is_due': card.is_due(),
+                'updated_at': card.updated_at.isoformat(),
             }
         })
 
@@ -539,7 +610,15 @@ def card_delete(request, card_id):
     Delete a card.
     """
     try:
-        card = Card.objects.get(id=card_id, deck__user=request.user)
+        card = Card.objects.get(id=card_id)
+
+        # Check permissions
+        if not card.deck.can_edit(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to delete this card'}
+            }, status=403)
+
         card.delete()
         return JsonResponse({'success': True, 'data': {'message': 'Card deleted successfully'}})
     except Card.DoesNotExist:
@@ -561,54 +640,91 @@ def study_session(request, deck_id):
     Return cards due for review.
 
     POST /api/decks/<deck_id>/study/
-    Start a new study session.
+    Start a new study session with direction selection.
     """
-    from .utils import get_due_cards
+    from django.utils import timezone
 
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
 
-        if request.method == 'GET':
-            # Return cards due for review
-            due_cards = get_due_cards(deck)
-            data = [{
-                'id': card.id,
-                'front': card.front,
-                'back': card.back,
-                'created_at': card.created_at.isoformat(),
-                'ease_factor': card.ease_factor,
-                'interval': card.interval,
-                'repetitions': card.repetitions,
-                'next_review': card.next_review.isoformat(),
-            } for card in due_cards]
+        # Check permissions
+        if not deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this deck'}
+            }, status=403)
 
-            return JsonResponse({'success': True, 'data': data})
+        if request.method == 'POST':
+            data = json.loads(request.body) if request.body else {}
+            direction = data.get('direction', 'A_TO_B')
 
-        elif request.method == 'POST':
-            # Start a new study session
+            if direction not in ['A_TO_B', 'B_TO_A', 'RANDOM']:
+                return JsonResponse({
+                    'success': False,
+                    'error': {'code': 'INVALID_DIRECTION', 'message': 'Invalid study direction'}
+                }, status=400)
+
+            # Get due cards for this user in this direction
+            progress_items = UserCardProgress.objects.filter(
+                user=request.user,
+                card__deck=deck,
+                next_review__lte=timezone.now()
+            ).select_related('card')
+
+            if direction != 'RANDOM':
+                progress_items = progress_items.filter(study_direction=direction)
+
+            progress_items = progress_items[:20]  # Limit to 20 cards per session
+
+            # Format cards based on direction
+            cards = []
+            for progress in progress_items:
+                card = progress.card
+                if progress.study_direction == 'A_TO_B':
+                    question = card.language_a or card.front
+                    answer = card.language_b or card.back
+                else:  # B_TO_A
+                    question = card.language_b or card.back
+                    answer = card.language_a or card.front
+
+                cards.append({
+                    'id': card.id,
+                    'question': question,
+                    'answer': answer,
+                    'context': card.context,
+                    'direction': progress.study_direction
+                })
+
+            # Create session
             session = StudySession.objects.create(
                 user=request.user,
-                deck=deck
+                deck=deck,
+                study_direction=direction if direction != 'RANDOM' else None
             )
 
-            due_cards = get_due_cards(deck)
-            data = {
-                'session_id': session.id,
-                'deck_id': deck.id,
-                'cards': [{
-                    'id': card.id,
-                    'front': card.front,
-                    'back': card.back,
-                } for card in due_cards]
-            }
-
-            return JsonResponse({'success': True, 'data': data}, status=201)
+            return JsonResponse({
+                'success': True,
+                'data': {
+                    'session_id': session.id,
+                    'deck': {
+                        'id': deck.id,
+                        'title': deck.title,
+                    },
+                    'direction': direction,
+                    'cards': cards
+                }
+            }, status=201)
 
     except Deck.DoesNotExist:
         return JsonResponse({
             'success': False,
             'error': {'code': 'NOT_FOUND', 'message': 'Deck not found'}
         }, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': {'code': 'INVALID_JSON', 'message': 'Invalid JSON in request body'}
+        }, status=400)
 
 
 @login_required
@@ -616,16 +732,26 @@ def study_session(request, deck_id):
 def submit_review(request, card_id):
     """
     POST /api/cards/<card_id>/review/
-    Submit a card review with quality rating.
-    Updates card using spaced repetition algorithm.
+    Submit a card review with quality rating and direction.
+    Updates UserCardProgress using spaced repetition algorithm.
     """
     from .utils import calculate_next_review
+    from django.utils import timezone
 
     try:
-        card = Card.objects.get(id=card_id, deck__user=request.user)
+        card = Card.objects.get(id=card_id)
+
+        # Check permissions
+        if not card.deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this card'}
+            }, status=403)
+
         data = json.loads(request.body)
 
         quality = data.get('quality')
+        direction = data.get('direction', 'A_TO_B')
         session_id = data.get('session_id')
         time_taken = data.get('time_taken', 0)
 
@@ -635,9 +761,28 @@ def submit_review(request, card_id):
                 'error': {'code': 'INVALID_INPUT', 'message': 'Quality must be an integer between 0 and 5'}
             }, status=400)
 
+        if direction not in ['A_TO_B', 'B_TO_A']:
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'INVALID_DIRECTION', 'message': 'Invalid study direction'}
+            }, status=400)
+
+        # Get or create progress for this user, card, and direction
+        progress, created = UserCardProgress.objects.get_or_create(
+            user=request.user,
+            card=card,
+            study_direction=direction,
+            defaults={
+                'ease_factor': 2.5,
+                'interval': 1,
+                'repetitions': 0,
+                'next_review': timezone.now()
+            }
+        )
+
         # Apply SM-2 algorithm
-        card = calculate_next_review(card, quality)
-        card.save()
+        progress = calculate_next_review(progress, quality)
+        progress.save()
 
         # Record the review
         if session_id:
@@ -647,22 +792,21 @@ def submit_review(request, card_id):
                     card=card,
                     session=session,
                     quality=quality,
+                    study_direction=direction,
                     time_taken=time_taken
                 )
                 # Update session cards studied count
                 session.cards_studied += 1
                 session.save()
             except StudySession.DoesNotExist:
-                pass  # Session not found, but we still update the card
+                pass  # Session not found, but we still update progress
 
         return JsonResponse({
             'success': True,
             'data': {
-                'id': card.id,
-                'ease_factor': card.ease_factor,
-                'interval': card.interval,
-                'repetitions': card.repetitions,
-                'next_review': card.next_review.isoformat(),
+                'next_review': progress.next_review.isoformat(),
+                'interval': progress.interval,
+                'ease_factor': round(progress.ease_factor, 2)
             }
         })
 

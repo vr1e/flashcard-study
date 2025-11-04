@@ -10,12 +10,12 @@ from datetime import timedelta
 from django.utils import timezone
 
 
-def calculate_next_review(card, quality):
+def calculate_next_review(progress, quality):
     """
-    SM-2 Algorithm for spaced repetition.
+    SM-2 Algorithm for spaced repetition (new version for UserCardProgress).
 
     Args:
-        card: Card model instance
+        progress: UserCardProgress model instance (or Card for legacy support)
         quality: int (0-5) - user's self-assessment
             0 - Complete blackout
             1 - Incorrect, but familiar
@@ -25,7 +25,7 @@ def calculate_next_review(card, quality):
             5 - Perfect response
 
     Returns:
-        Card instance with updated:
+        Updated progress/card instance with:
         - ease_factor
         - interval
         - repetitions
@@ -38,29 +38,30 @@ def calculate_next_review(card, quality):
     """
     if quality < 3:
         # Failed: reset repetitions, review tomorrow
-        card.repetitions = 0
-        card.interval = 1
+        progress.repetitions = 0
+        progress.interval = 1
     else:
         # Passed: increase interval
-        if card.repetitions == 0:
-            card.interval = 1
-        elif card.repetitions == 1:
-            card.interval = 6
+        if progress.repetitions == 0:
+            progress.interval = 1
+        elif progress.repetitions == 1:
+            progress.interval = 6
         else:
-            card.interval = round(card.interval * card.ease_factor)
+            progress.interval = round(progress.interval * progress.ease_factor)
 
-        card.repetitions += 1
+        progress.repetitions += 1
 
     # Adjust ease factor based on performance
-    card.ease_factor = max(
+    # EF' = EF + (0.1 - (5 - q) × (0.08 + (5 - q) × 0.02))
+    progress.ease_factor = max(
         1.3,
-        card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+        progress.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
     )
 
     # Set next review date
-    card.next_review = timezone.now() + timedelta(days=card.interval)
+    progress.next_review = timezone.now() + timedelta(days=progress.interval)
 
-    return card
+    return progress
 
 
 def get_due_cards(deck):

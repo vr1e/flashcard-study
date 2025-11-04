@@ -14,6 +14,12 @@
                     <p class="text-muted">Start your learning journey</p>
                 </div>
 
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error }}
+                </div>
+                {% endif %}
+
                 <!-- Registration form will be implemented in views.py -->
                 <form method="post">
                     {% csrf_token %}

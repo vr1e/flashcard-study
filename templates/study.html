@@ -82,8 +82,44 @@
 
     <!-- Study Card Area -->
     <div id="study-area">
+        <!-- Direction Selection -->
+        <div id="direction-selector" class="card mb-4">
+            <div class="card-body text-center">
+                <h4 class="mb-3">Choose Study Direction</h4>
+                <p class="text-muted">
+                    Select which direction you'd like to study
+                </p>
+
+                <div class="d-grid gap-3" style="max-width: 500px; margin: 0 auto;">
+                    <button type="button" class="btn btn-outline-primary btn-lg" onclick="startStudyWithDirection('A_TO_B')">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span>Language A → Language B</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </div>
+                        <small class="d-block text-muted mt-1">Study in forward direction</small>
+                    </button>
+
+                    <button type="button" class="btn btn-outline-primary btn-lg" onclick="startStudyWithDirection('B_TO_A')">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span>Language B → Language A</span>
+                            <i class="bi bi-arrow-left"></i>
+                        </div>
+                        <small class="d-block text-muted mt-1">Study in reverse direction</small>
+                    </button>
+
+                    <button type="button" class="btn btn-outline-secondary btn-lg" onclick="startStudyWithDirection('RANDOM')">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span>Random Direction</span>
+                            <i class="bi bi-shuffle"></i>
+                        </div>
+                        <small class="d-block text-muted mt-1">Mix both directions</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Loading State -->
-        <div id="loading-state" class="text-center">
+        <div id="loading-state" class="text-center" style="display: none;">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>

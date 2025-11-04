@@ -14,6 +14,7 @@ urlpatterns = [
     path('decks/<int:deck_id>/', views.deck_detail, name='deck_detail'),
     path('decks/<int:deck_id>/study/', views.study_view, name='study'),
     path('stats/', views.stats_view, name='stats'),
+    path('partnership/', views.partnership_view, name='partnership'),
 
     # ========================================================================
     # Authentication

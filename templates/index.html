@@ -31,14 +31,48 @@
     </div>
 </div>
 
-<!-- Deck Grid -->
-<div id="deck-grid" class="row g-4">
-    <!-- Decks will be loaded here via JavaScript -->
+<!-- Loading State -->
+<div id="decks-loading" class="row g-4">
     <div class="col-12 text-center">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
         <p class="mt-2 text-muted">Loading your decks...</p>
+    </div>
+</div>
+
+<!-- Shared Decks Section -->
+<div id="shared-decks-section" style="display: none;">
+    <div class="row mb-2">
+        <div class="col-12">
+            <h4><i class="bi bi-people-fill text-info"></i> Shared Decks</h4>
+            <p class="text-muted small">Decks you share with your partner</p>
+        </div>
+    </div>
+    <div id="shared-decks-grid" class="row g-4 mb-5">
+        <!-- Shared decks will be loaded here -->
+    </div>
+</div>
+
+<!-- Personal Decks Section -->
+<div id="personal-decks-section" style="display: none;">
+    <div class="row mb-2">
+        <div class="col-12">
+            <h4><i class="bi bi-person-fill"></i> Personal Decks</h4>
+            <p class="text-muted small">Private decks only you can access</p>
+        </div>
+    </div>
+    <div id="personal-decks-grid" class="row g-4">
+        <!-- Personal decks will be loaded here -->
+    </div>
+</div>
+
+<!-- No Decks State -->
+<div id="no-decks" class="row g-4" style="display: none;">
+    <div class="col-12 text-center py-5">
+        <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+        <h3 class="mt-3">No decks yet</h3>
+        <p class="text-muted">Create your first deck to get started!</p>
     </div>
 </div>
 
