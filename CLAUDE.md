@@ -2,16 +2,18 @@
 
 ## Project Overview
 
-**Flashcard Study Tool** - Spaced repetition learning system using SM-2 algorithm
+**Flashcard Study Tool** - Couples language learning platform with bidirectional spaced repetition
 **Stack**: Django 4.2 + TypeScript + Bootstrap 5 + Chart.js
-**Status**: ✅ Fully implemented and tested
+**Status**: ✅ Partnership & bidirectional learning fully implemented
 
 ### Core Features
 
-- User-owned flashcard decks
-- SM-2 spaced repetition algorithm
+- **Partnership system** - Two users share decks and study together
+- **Bidirectional learning** - Study language pairs in both directions (A→B, B→A, Random)
+- **Per-user progress** - Separate SM-2 tracking for each user and direction
+- **Language-aware cards** - Cards with language codes and context
 - Study sessions with card rating (0-5)
-- Statistics dashboard with visualizations
+- Statistics dashboard
 
 ## Architecture
 
@@ -20,8 +22,8 @@
 ```
 flashcard_project/          # Django configuration
 flashcards/                 # Main app
-├── models.py              # Deck, Card, StudySession, Review
-├── views.py               # API endpoints (16 endpoints implemented)
+├── models.py              # Deck, Card, Partnership, UserCardProgress, etc.
+├── views.py               # API endpoints (20+ endpoints)
 ├── urls.py                # Complete routing
 ├── utils.py               # SM-2 algorithm implementation
 └── admin.py               # Admin configuration
@@ -33,8 +35,9 @@ flashcards/                 # Main app
 src/ts/
 ├── api.ts                 # API client + type definitions
 ├── decks.ts               # Deck management (index.html)
-├── cards.ts               # Card CRUD (deck_detail.html)
-├── study.ts               # Study session logic (study.html)
+├── cards.ts               # Card CRUD with language fields (deck_detail.html)
+├── study.ts               # Study with direction selection (study.html)
+├── partnership.ts         # Partnership management (partnership.html)
 └── stats.ts               # Chart.js integration (stats.html)
 ```
 
@@ -45,29 +48,46 @@ src/ts/
 ```
 templates/
 ├── base.html              # Bootstrap 5, navbar, auth status
-├── index.html             # Dashboard (deck list)
-├── deck_detail.html       # Card management
-├── study.html             # Flashcard interface
+├── index.html             # Dashboard (personal + shared decks)
+├── deck_detail.html       # Card management with language fields
+├── study.html             # Direction selection + flashcards
+├── partnership.html       # Partnership management UI
 └── stats.html             # Charts + statistics
 ```
 
 ## Data Models
 
-### Card (spaced repetition fields)
+### Card (language-aware)
 
 ```python
-ease_factor: FloatField(default=2.5)    # 1.3+ after adjustments
-interval: IntegerField(default=1)       # Days until next review
-repetitions: IntegerField(default=0)    # Success count
-next_review: DateTimeField              # When card is due
+language_a: TextField          # First language text
+language_b: TextField          # Second language text
+language_a_code: CharField     # e.g., 'sr' for Serbian
+language_b_code: CharField     # e.g., 'de' for German
+context: TextField             # Optional usage example
+# Legacy: front, back (kept for backward compatibility)
 ```
 
-### Review
+### UserCardProgress (per-user, per-direction SM-2)
 
 ```python
-quality: IntegerField(0-5)              # User rating
-# 0-2: Failed → reset card
-# 3-5: Success → increase interval
+user: ForeignKey              # Which user
+card: ForeignKey              # Which card
+study_direction: CharField    # 'A_TO_B' or 'B_TO_A'
+ease_factor: FloatField       # SM-2 ease factor
+interval: IntegerField        # Days until next review
+repetitions: IntegerField     # Success count
+next_review: DateTimeField    # When due for this user/direction
+# unique_together = ('user', 'card', 'study_direction')
+```
+
+### Partnership
+
+```python
+user_a: ForeignKey            # First partner
+user_b: ForeignKey            # Second partner
+decks: ManyToManyField        # Shared decks
+is_active: BooleanField       # Active status
 ```
 
 **See**: `docs/rfcs/0001-spaced-repetition-algorithm.md` for SM-2 implementation details
@@ -86,12 +106,28 @@ All endpoints return JSON with structure:
 
 ### Key Endpoints
 
-- `GET/POST /api/decks/` - List/create decks
+**Decks**:
+
+- `GET /api/decks/` - List decks (returns {personal: [], shared: []})
+- `POST /api/decks/create/` - Create deck (supports `shared: true`)
 - `GET/PUT/DELETE /api/decks/<id>/` - Deck operations
-- `GET/POST /api/decks/<id>/cards/` - Cards in deck
-- `POST /api/study/start/<deck_id>/` - Start session
-- `POST /api/study/review/` - Submit card rating
-- `GET /api/stats/` - User statistics
+
+**Cards**:
+
+- `POST /api/decks/<id>/cards/create/` - Create card with language fields
+- `PUT /api/cards/<id>/update/` - Update card
+
+**Study**:
+
+- `POST /api/decks/<id>/study/` - Start session with direction ('A_TO_B', 'B_TO_A', 'RANDOM')
+- `POST /api/cards/<id>/review/` - Submit rating (updates UserCardProgress)
+
+**Partnership**:
+
+- `POST /api/partnership/invite/` - Generate 6-char invitation code
+- `POST /api/partnership/accept/` - Accept invitation
+- `GET /api/partnership/` - Get partnership info
+- `DELETE /api/partnership/dissolve/` - End partnership
 
 **See**: `docs/rfcs/0003-api-design.md` for complete API docs
 
@@ -103,8 +139,15 @@ All endpoints return JSON with structure:
 // All HTTP calls go through singleton
 import { api } from "./api";
 
-const decks = await api.getDecks();
-await api.createCard(deckId, { front, back });
+const decks = await api.getDecks(); // Returns {personal: [], shared: []}
+await api.createCard(
+	deckId,
+	language_a,
+	language_b,
+	lang_a_code,
+	lang_b_code,
+	context
+);
 ```
 
 ### Type Safety
@@ -128,6 +171,11 @@ const element = document.getElementById("my-id") as HTMLElement;
 - Return `JsonResponse` for APIs, `render()` for pages
 - Imports: Django → third-party → local
 
+### Git
+
+- **Commit messages**: One line only, concise and descriptive
+- **Example**: `Add partnership and bidirectional learning models`
+
 ### TypeScript
 
 - `camelCase` for functions/variables
@@ -143,16 +191,17 @@ const element = document.getElementById("my-id") as HTMLElement;
 
 ## Implementation Status
 
-### ✅ Complete
+### ✅ Complete (RFC 0007 & 0008)
 
-- All models with SM-2 spaced repetition fields
-- Complete API with 16 endpoints (deck, card, study, stats, auth)
-- TypeScript frontend with API client and type safety
-- Study sessions with timer and quality tracking
-- Statistics dashboard with Chart.js visualizations
-- User authentication and authorization
-- Deck/card CRUD operations
-- Responsive UI with Bootstrap 5
+- **Partnership system**: Invite codes, shared decks, permissions
+- **Bidirectional learning**: A→B, B→A, Random study directions
+- **Per-user progress**: UserCardProgress model tracks each user/direction separately
+- **Language-aware cards**: language_a/b with codes + context
+- Complete API (20+ endpoints)
+- TypeScript frontend with direction selection
+- Study sessions with SM-2 algorithm
+- Statistics dashboard
+- User authentication
 
 ## Development Workflow
 
@@ -198,18 +247,19 @@ python manage.py migrate
 3. **TypeScript Must Compile**: Changes to `.ts` files require compilation
 4. **Bootstrap 5**: Already included via CDN in `base.html`
 5. **Authentication**: Django session-based, `@login_required` required on views
-6. **SM-2 Algorithm**: See RFC 0001 for formula and implementation requirements
-7. **RFCs**: Check `docs/rfcs/` for detailed design decisions
+6. **UserCardProgress**: When creating cards, MUST create UserCardProgress for both directions for all users with deck access (see `views.py:507-530`)
+7. **RFCs**: Check `docs/rfcs/` for detailed design decisions (0007: Partnership, 0008: Bidirectional)
 
 ## Quick Reference
 
-- **Main RFC Docs**: `docs/rfcs/` (0001: Algorithm, 0002: UX Flow, 0003: API)
+- **Main RFC Docs**: `docs/rfcs/` (0007: Partnership, 0008: Bidirectional, 0001: Algorithm)
 - **User Docs**: `README.md`
+- **Deployment**: `docs/DEPLOYMENT.md`
 - **Database**: SQLite (`db.sqlite3` in root)
 - **Static Files**: `static/` (served by Django in dev)
 - **TypeScript Config**: `tsconfig.json`
 
 ---
 
-**Last Updated**: 2025-11-01
-**Status**: Production-ready application with full feature set implemented and tested
+**Last Updated**: 2025-11-03
+**Status**: Couples language learning platform - partnership & bidirectional learning fully implemented

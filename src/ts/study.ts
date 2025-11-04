@@ -25,11 +25,15 @@ class StudyController {
 	}
 
 	/**
-	 * Start the study session
+	 * Start the study session with selected direction
 	 */
-	async start(): Promise<void> {
+	async start(direction: 'A_TO_B' | 'B_TO_A' | 'RANDOM' = 'A_TO_B'): Promise<void> {
+		// Hide direction selector and show loading
+		document.getElementById('direction-selector')!.style.display = 'none';
+		document.getElementById('loading-state')!.style.display = 'block';
+
 		try {
-			const response = await api.startStudySession(this.deckId);
+			const response = await api.startStudySession(this.deckId, direction);
 
 			this.sessionId = response.session_id;
 			this.cards = response.cards;
@@ -64,9 +68,11 @@ class StudyController {
 		this.flipped = false;
 		this.cardStartTime = Date.now();
 
-		// Update card content
-		document.getElementById("card-front-text")!.textContent = card.front;
-		document.getElementById("card-back-text")!.textContent = card.back;
+		// Update card content (support both old and new formats)
+		const question = card.question || card.front;
+		const answer = card.answer || card.back;
+		document.getElementById("card-front-text")!.textContent = question;
+		document.getElementById("card-back-text")!.textContent = answer;
 
 		// Reset card to front
 		const flashcard = document.getElementById("flashcard")!;
@@ -108,6 +114,7 @@ class StudyController {
 				session_id: this.sessionId,
 				quality: quality,
 				time_taken: timeSpent,
+				direction: card.direction || 'A_TO_B', // Default to A_TO_B for backward compatibility
 			});
 
 			// Track quality for average calculation
@@ -244,11 +251,14 @@ class StudyController {
 let currentSession: StudyController | null = null;
 
 /**
- * Start a new study session
+ * Start a new study session (called from direction selector)
  */
-async function startStudySession(deckId: number): Promise<void> {
-	currentSession = new StudyController(deckId);
-	await currentSession.start();
+async function startStudyWithDirection(direction: 'A_TO_B' | 'B_TO_A' | 'RANDOM'): Promise<void> {
+	const deckId = parseInt(window.location.pathname.split('/')[2]);
+	if (deckId && !currentSession) {
+		currentSession = new StudyController(deckId);
+		await currentSession.start(direction);
+	}
 }
 
 /**
@@ -306,14 +316,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 	}
 
-	// Auto-start study session
-	const deckId = parseInt(window.location.pathname.split('/')[2]);
-	if (deckId) {
-		startStudySession(deckId);
-	}
-
 	// Expose functions to global scope for HTML onclick handlers
-	(window as any).startStudySession = startStudySession;
+	(window as any).startStudyWithDirection = startStudyWithDirection;
 	(window as any).submitRating = submitRating;
 });
 

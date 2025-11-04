@@ -1,7 +1,8 @@
-# RFC 0010: Course/Collection Terminology
+# RFC 0009: Course/Collection Terminology
 
 **Status**: Proposed
-**Created**: 2025-11-03
+**Created**: 2025-11-02
+**Last Updated**: 2025-11-03
 
 ---
 

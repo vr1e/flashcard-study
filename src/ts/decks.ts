@@ -16,35 +16,45 @@ declare const bootstrap: any;
  * Load and display all user's decks
  */
 async function loadDecks(): Promise<void> {
-    const deckGrid = document.getElementById('deck-grid');
-    if (!deckGrid) return;
+    const loading = document.getElementById('decks-loading');
+    const sharedSection = document.getElementById('shared-decks-section');
+    const personalSection = document.getElementById('personal-decks-section');
+    const noDecks = document.getElementById('no-decks');
+    const sharedGrid = document.getElementById('shared-decks-grid');
+    const personalGrid = document.getElementById('personal-decks-grid');
+
+    if (!loading || !sharedSection || !personalSection || !noDecks || !sharedGrid || !personalGrid) return;
 
     try {
         const response = await api.getDecks();
         const personalDecks = response.personal || [];
         const sharedDecks = response.shared || [];
-        const allDecks = [...personalDecks, ...sharedDecks];
 
-        if (allDecks.length === 0) {
-            deckGrid.innerHTML = `
-                <div class="col-12 text-center py-5">
-                    <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
-                    <h3 class="mt-3">No decks yet</h3>
-                    <p class="text-muted">Create your first deck to get started!</p>
-                </div>
-            `;
+        // Hide loading
+        loading.style.display = 'none';
+
+        if (personalDecks.length === 0 && sharedDecks.length === 0) {
+            noDecks.style.display = 'block';
             return;
         }
 
-        // Mark shared decks
-        const personalCards = personalDecks.map(deck => createDeckCard(deck, false));
-        const sharedCards = sharedDecks.map(deck => createDeckCard(deck, true));
+        // Show shared decks if any
+        if (sharedDecks.length > 0) {
+            sharedSection.style.display = 'block';
+            const sharedCards = sharedDecks.map(deck => createDeckCard(deck, true));
+            sharedGrid.innerHTML = sharedCards.join('');
+        }
 
-        deckGrid.innerHTML = [...personalCards, ...sharedCards].join('');
+        // Show personal decks if any
+        if (personalDecks.length > 0) {
+            personalSection.style.display = 'block';
+            const personalCards = personalDecks.map(deck => createDeckCard(deck, false));
+            personalGrid.innerHTML = personalCards.join('');
+        }
 
     } catch (error) {
         console.error('Failed to load decks:', error);
-        deckGrid.innerHTML = `
+        loading.innerHTML = `
             <div class="col-12">
                 <div class="alert alert-danger">
                     Failed to load decks. Please refresh the page.
