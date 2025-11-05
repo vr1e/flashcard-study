@@ -6,8 +6,31 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1>Learning Statistics</h1>
-        <p class="text-muted">Track your progress and performance</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1>Learning Statistics</h1>
+                <p class="text-muted mb-0">Track your progress and performance</p>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <ul class="nav nav-tabs" id="stats-filter-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="filter-all-tab" data-filter="all" type="button">
+                    <i class="bi bi-grid"></i> All
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="filter-courses-tab" data-filter="courses" type="button">
+                    <i class="bi bi-people"></i> Courses Only
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="filter-collections-tab" data-filter="collections" type="button">
+                    <i class="bi bi-book"></i> Collections Only
+                </button>
+            </li>
+        </ul>
     </div>
 </div>
 

@@ -41,29 +41,64 @@
     </div>
 </div>
 
-<!-- Courses Section (Learning Buddy) -->
-<div id="courses-section" class="buddy-section" style="display: none;">
-    <div class="row mb-2">
-        <div class="col-12">
-            <h4><i class="bi bi-people-fill"></i> 🤝 Learning Buddy</h4>
-            <p class="text-muted small">Courses you share with your learning buddy</p>
+<!-- Single Mode View (No Partnership) -->
+<div id="single-mode-view" style="display: none;">
+    <!-- Invite CTA Banner -->
+    <div class="invite-cta-banner mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h6 class="mb-1"><i class="bi bi-lightbulb-fill"></i> Want to learn together?</h6>
+                <small>Partner with your learning buddy to create shared courses and study together!</small>
+            </div>
+            <button class="btn btn-light btn-sm" onclick="window.showInviteModal()">
+                <i class="bi bi-send"></i> Invite Buddy
+            </button>
         </div>
     </div>
-    <div id="courses-grid" class="row g-4 mb-5">
-        <!-- Courses will be loaded here -->
+
+    <!-- Collections Section (Single Mode) -->
+    <h4 class="mb-3"><i class="bi bi-book-fill"></i> My Collections</h4>
+    <div id="single-collections-section" style="display: none;">
+        <div id="single-collections-grid" class="row g-4">
+            <!-- Collections will be loaded here -->
+        </div>
     </div>
 </div>
 
-<!-- Collections Section (Personal Study) -->
-<div id="collections-section" class="personal-section" style="display: none;">
-    <div class="row mb-2">
-        <div class="col-12">
-            <h4><i class="bi bi-book-fill"></i> 📚 Personal Study</h4>
-            <p class="text-muted small">Private collections only you can access</p>
+<!-- Dual Mode View (Has Partnership) -->
+<div id="dual-mode-view" class="dual-mode-dashboard" style="display: none;">
+    <!-- Courses Section (Learning Buddy) -->
+    <div id="courses-section" class="buddy-section" style="display: none;">
+        <div class="row mb-2">
+            <div class="col-12">
+                <h4><i class="bi bi-people-fill"></i> 🤝 Learning Buddy</h4>
+                <p class="text-muted small">Courses you share with your learning buddy</p>
+            </div>
+        </div>
+        <div id="courses-grid" class="row g-4 mb-4">
+            <!-- Courses will be loaded here -->
+        </div>
+
+        <!-- Activity Feed -->
+        <div id="activity-feed-section" class="mt-4">
+            <h6 class="mb-3"><i class="bi bi-clock-history"></i> Recent Activity</h6>
+            <div id="activity-feed" class="activity-feed">
+                <!-- Activities will be loaded here -->
+            </div>
         </div>
     </div>
-    <div id="collections-grid" class="row g-4">
-        <!-- Collections will be loaded here -->
+
+    <!-- Collections Section (Personal Study) -->
+    <div id="collections-section" class="personal-section" style="display: none;">
+        <div class="row mb-2">
+            <div class="col-12">
+                <h4><i class="bi bi-book-fill"></i> 📚 Personal Study</h4>
+                <p class="text-muted small">Private collections only you can access</p>
+            </div>
+        </div>
+        <div id="collections-grid" class="row g-4">
+            <!-- Collections will be loaded here -->
+        </div>
     </div>
 </div>
 

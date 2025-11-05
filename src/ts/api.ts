@@ -290,12 +290,21 @@ class FlashcardAPI {
 	// Statistics Endpoints
 	// ========================================================================
 
-	async getUserStats(): Promise<Statistics> {
-		return this.fetch<Statistics>(`${this.baseURL}/stats/`);
+	async getUserStats(filter?: 'all' | 'courses' | 'collections'): Promise<Statistics> {
+		const params = filter && filter !== 'all' ? `?filter=${filter}` : '';
+		return this.fetch<Statistics>(`${this.baseURL}/stats/${params}`);
 	}
 
 	async getDeckStats(deckId: number): Promise<any> {
 		return this.fetch<any>(`${this.baseURL}/decks/${deckId}/stats/`);
+	}
+
+	// ========================================================================
+	// Activity Endpoints
+	// ========================================================================
+
+	async getActivities(limit: number = 10): Promise<any> {
+		return this.fetch<any>(`${this.baseURL}/activity/?limit=${limit}`);
 	}
 
 	// ========================================================================

@@ -24,12 +24,36 @@ from .models import Deck, Card, StudySession, Review, Partnership, PartnershipIn
 # ============================================================================
 
 @login_required
+def welcome(request):
+    """
+    Welcome page for first-time users.
+    Shows vision-first onboarding explaining collaborative learning.
+    """
+    return render(request, 'welcome.html')
+
+
+@login_required
 def index(request):
     """
     Dashboard/home page.
     Shows all user's decks (personal and shared) with due card counts.
+    Redirects first-time users to welcome page.
     """
     from django.db.models import Q
+
+    # Check if this is user's first visit (no decks and no partnership)
+    user_decks_count = Deck.objects.filter(user=request.user).count()
+    has_partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).exists()
+
+    # Redirect to welcome page if first visit (unless coming from welcome)
+    if user_decks_count == 0 and not has_partnership and not request.GET.get('skip_welcome'):
+        # Check session to see if they've already seen welcome
+        if not request.session.get('welcome_shown'):
+            request.session['welcome_shown'] = True
+            return redirect('welcome')
 
     # Get user's partnership
     partnership = Partnership.objects.filter(
@@ -263,6 +287,15 @@ def deck_create(request):
             if is_shared and partnership:
                 partnership.decks.add(deck)
 
+                # Log activity
+                from .models import Activity
+                Activity.objects.create(
+                    user=request.user,
+                    action_type='DECK_CREATED',
+                    deck=deck,
+                    details={}
+                )
+
         return JsonResponse({
             'success': True,
             'data': {
@@ -309,13 +342,15 @@ def deck_detail_api(request, deck_id):
                 'error': {'code': 'FORBIDDEN', 'message': 'You do not have access to this deck'}
             }, status=403)
 
+        is_shared = deck.is_shared()
         return JsonResponse({
             'success': True,
             'data': {
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
-                'is_shared': deck.is_shared(),
+                'type': 'course' if is_shared else 'collection',
+                'is_shared': is_shared,
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
@@ -520,6 +555,16 @@ def card_create(request, deck_id):
                 card=card,
                 study_direction='B_TO_A',
                 next_review=timezone.now()
+            )
+
+        # Log activity if deck is shared
+        if partnership:
+            from .models import Activity
+            Activity.objects.create(
+                user=request.user,
+                action_type='CARD_ADDED',
+                deck=deck,
+                details={'count': 1}
             )
 
         return JsonResponse({
@@ -831,12 +876,31 @@ def submit_review(request, card_id):
 @require_http_methods(["GET"])
 def user_stats(request):
     """
-    GET /api/stats/
-    Return user-wide learning statistics.
+    GET /api/stats/?filter=all|courses|collections
+    Return user-wide learning statistics with optional filtering.
     """
     from .utils import get_study_stats
+    from django.db.models import Q
 
-    stats = get_study_stats(request.user)
+    # Get filter parameter (default: all)
+    filter_type = request.GET.get('filter', 'all')
+
+    # Determine which decks to include based on filter
+    if filter_type == 'courses':
+        # Only shared decks (part of an active partnership)
+        partnership = Partnership.objects.filter(
+            Q(user_a=request.user) | Q(user_b=request.user),
+            is_active=True
+        ).first()
+        deck_filter = partnership.decks.all() if partnership else Deck.objects.none()
+    elif filter_type == 'collections':
+        # Only personal decks (not shared)
+        deck_filter = Deck.objects.filter(user=request.user, partnerships__isnull=True)
+    else:
+        # All decks (default)
+        deck_filter = None
+
+    stats = get_study_stats(request.user, deck_filter=deck_filter)
     return JsonResponse({'success': True, 'data': stats})
 
 
@@ -1075,4 +1139,76 @@ def partnership_dissolve(request):
         'success': True,
         'message': 'Partnership dissolved',
         'decks_affected': decks_count
+    })
+
+
+# ============================================================================
+# Activity API Endpoints
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def activity_feed(request):
+    """
+    GET /api/activity/?limit=10
+    Return recent activities from the user's learning buddy on shared decks.
+    """
+    from django.db.models import Q
+    from .models import Activity
+
+    # Get user's partnership
+    partnership = Partnership.objects.filter(
+        Q(user_a=request.user) | Q(user_b=request.user),
+        is_active=True
+    ).first()
+
+    if not partnership:
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'activities': [],
+                'has_partnership': False
+            }
+        })
+
+    # Get partner
+    partner = partnership.user_b if partnership.user_a == request.user else partnership.user_a
+
+    # Get shared decks
+    shared_deck_ids = list(partnership.decks.values_list('id', flat=True))
+
+    # Fetch partner's recent activities on shared decks
+    limit = int(request.GET.get('limit', 20))
+    activities = Activity.objects.filter(
+        user=partner,
+        deck_id__in=shared_deck_ids
+    )[:limit]
+
+    # Serialize activities
+    activities_data = []
+    for activity in activities:
+        activities_data.append({
+            'id': activity.id,
+            'user': {
+                'username': activity.user.username,
+            },
+            'action_type': activity.action_type,
+            'display_text': activity.get_display_text(),
+            'deck': {
+                'id': activity.deck.id,
+                'title': activity.deck.title
+            } if activity.deck else None,
+            'created_at': activity.created_at.isoformat(),
+            'details': activity.details
+        })
+
+    return JsonResponse({
+        'success': True,
+        'data': {
+            'activities': activities_data,
+            'has_partnership': True,
+            'partner': {
+                'username': partner.username
+            }
+        }
     })
