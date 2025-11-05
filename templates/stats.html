@@ -6,8 +6,31 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1>Learning Statistics</h1>
-        <p class="text-muted">Track your progress and performance</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1>Learning Statistics</h1>
+                <p class="text-muted mb-0">Track your progress and performance</p>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <ul class="nav nav-tabs" id="stats-filter-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="filter-all-tab" data-filter="all" type="button">
+                    <i class="bi bi-grid"></i> All
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="filter-courses-tab" data-filter="courses" type="button">
+                    <i class="bi bi-people"></i> Courses Only
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="filter-collections-tab" data-filter="collections" type="button">
+                    <i class="bi bi-book"></i> Collections Only
+                </button>
+            </li>
+        </ul>
     </div>
 </div>
 
@@ -18,7 +41,7 @@
             <div class="card-body">
                 <i class="bi bi-stack text-primary" style="font-size: 2rem;"></i>
                 <h3 id="total-decks" class="mt-2">0</h3>
-                <p class="text-muted mb-0">Total Decks</p>
+                <p class="text-muted mb-0">Total Courses & Collections</p>
             </div>
         </div>
     </div>
@@ -77,11 +100,11 @@
         </div>
     </div>
 
-    <!-- Average Quality by Deck -->
+    <!-- Average Quality by Course/Collection -->
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Average Quality by Deck</h5>
+                <h5 class="mb-0">Average Quality by Course/Collection</h5>
             </div>
             <div class="card-body">
                 <canvas id="deck-quality-chart"></canvas>

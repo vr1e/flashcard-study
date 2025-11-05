@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome - Flashcard Study{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-container {
+        min-height: calc(100vh - 200px);
+    }
+
+    .hero-section {
+        text-align: center;
+        padding: 3rem 0 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        margin-bottom: 3rem;
+    }
+
+    .hero-section h1 {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    .hero-section p {
+        font-size: 1.25rem;
+        opacity: 0.95;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .cta-section {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .cta-section .btn {
+        margin: 0 0.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+    }
+
+    .features-section {
+        margin-bottom: 3rem;
+    }
+
+    .feature-card {
+        text-align: center;
+        padding: 2rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        height: 100%;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-card h4 {
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .feature-card p {
+        color: #6c757d;
+    }
+
+    @media (max-width: 768px) {
+        .hero-section h1 {
+            font-size: 2rem;
+        }
+
+        .hero-section p {
+            font-size: 1rem;
+        }
+
+        .cta-section .btn {
+            display: block;
+            margin: 0.5rem auto;
+            width: 80%;
+            max-width: 300px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-container">
+    <div class="hero-section">
+        <h1><i class="bi bi-people-fill"></i> Learn Languages Together</h1>
+        <p>Create flashcard courses with your learning buddy and master languages through bidirectional practice. Study together, track progress, and achieve your language goals as a team.</p>
+    </div>
+
+    <div class="cta-section">
+        <a href="{% url 'index' %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-collection"></i> Create Your First Collection
+        </a>
+        <button class="btn btn-outline-primary btn-lg" onclick="window.location.href='{% url 'partnership' %}'">
+            <i class="bi bi-send"></i> Invite Your Learning Buddy
+        </button>
+    </div>
+
+    <div class="features-section">
+        <h2 class="text-center mb-4">Why Study Together?</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-heart-fill text-danger"></i>
+                    <h4>Perfect for Couples</h4>
+                    <p>Exchange languages with your partner. One teaches Spanish, the other teaches German - learn together!</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-arrow-left-right text-primary"></i>
+                    <h4>Bidirectional Learning</h4>
+                    <p>Study cards in both directions (A→B, B→A, or random) to reinforce learning from every angle.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-graph-up text-success"></i>
+                    <h4>Individual Progress</h4>
+                    <p>Separate tracking for each person and direction using the proven SM-2 spaced repetition algorithm.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-journals text-warning"></i>
+                    <h4>Shared Courses</h4>
+                    <p>Create courses together that both of you can study. Add cards, review together, and stay motivated.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-lock text-info"></i>
+                    <h4>Private Collections</h4>
+                    <p>Keep personal study materials separate. Your private collections are only visible to you.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-trophy text-primary"></i>
+                    <h4>Track Together</h4>
+                    <p>See your combined progress, celebrate milestones, and keep each other accountable.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center py-4">
+        <a href="{% url 'index' %}" class="btn btn-lg btn-primary">
+            <i class="bi bi-arrow-right-circle"></i> Get Started
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Mark that user has seen welcome page
+    sessionStorage.setItem('welcomeShown', 'true');
+</script>
+{% endblock %}

@@ -21,12 +21,16 @@ let qualityDistributionChart: any;
 // Load Statistics
 // ============================================================================
 
+// ============================================================================
+// State Management
+// ============================================================================
+
 /**
- * Load and display user statistics
+ * Load and display user statistics with optional filtering
  */
-async function loadStatistics(): Promise<void> {
+async function loadStatistics(filter: 'all' | 'courses' | 'collections' = 'all'): Promise<void> {
     try {
-        const stats = await api.getUserStats();
+        const stats = await api.getUserStats(filter);
 
         // Update summary cards
         document.getElementById('total-decks')!.textContent = stats.total_decks.toString();
@@ -46,6 +50,26 @@ async function loadStatistics(): Promise<void> {
     } catch (error) {
         console.error('Failed to load statistics:', error);
     }
+}
+
+/**
+ * Initialize filter tabs
+ */
+function initializeFilters(): void {
+    const filterTabs = document.querySelectorAll('#stats-filter-tabs button');
+
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', async () => {
+            const filter = tab.getAttribute('data-filter') as 'all' | 'courses' | 'collections';
+
+            // Update active state
+            filterTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Reload statistics with filter
+            await loadStatistics(filter);
+        });
+    });
 }
 
 // ============================================================================
@@ -281,7 +305,8 @@ function formatSeconds(seconds: number): string {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     initializeCharts();
-    loadStatistics();
+    initializeFilters();
+    loadStatistics('all');
 });
 
 // Make this file a module to avoid global scope conflicts

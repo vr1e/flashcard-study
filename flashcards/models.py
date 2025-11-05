@@ -389,3 +389,43 @@ class PartnershipInvitation(models.Model):
         if not self.expires_at:
             self.expires_at = timezone.now() + timedelta(days=7)
         super().save(*args, **kwargs)
+
+
+class Activity(models.Model):
+    """
+    Track user activity for partnership activity feed.
+    Records actions like card creation, deck creation, study sessions.
+    """
+    ACTION_TYPES = [
+        ('CARD_ADDED', 'Card Added'),
+        ('DECK_CREATED', 'Deck Created'),
+        ('STUDY_SESSION', 'Study Session Completed'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activities')
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
+    deck = models.ForeignKey(Deck, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    details = models.JSONField(default=dict, blank=True)  # Store additional info (e.g., card count)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Activities'
+
+    def __str__(self):
+        return f"{self.user.username} - {self.action_type} at {self.created_at}"
+
+    def get_display_text(self):
+        """Generate human-readable activity text."""
+        if self.action_type == 'CARD_ADDED':
+            count = self.details.get('count', 1)
+            deck_title = self.deck.title if self.deck else 'a deck'
+            return f"added {count} card{'s' if count > 1 else ''} to {deck_title}"
+        elif self.action_type == 'DECK_CREATED':
+            deck_title = self.deck.title if self.deck else 'a new deck'
+            return f"created course {deck_title}"
+        elif self.action_type == 'STUDY_SESSION':
+            count = self.details.get('cards_studied', 0)
+            deck_title = self.deck.title if self.deck else 'a deck'
+            return f"studied {count} cards in {deck_title}"
+        return self.action_type
