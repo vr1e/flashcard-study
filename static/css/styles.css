@@ -144,3 +144,109 @@ main {
         margin-bottom: 0.25rem;
     }
 }
+
+/* Course/Collection Color Coding */
+.buddy-section {
+    border-left: 4px solid #ff8c42;
+    padding-left: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.personal-section {
+    border-left: 4px solid #0d6efd;
+    padding-left: 1.5rem;
+}
+
+/* Course and Collection Badges */
+.course-badge {
+    background-color: #ff8c42 !important;
+    color: white !important;
+}
+
+.collection-badge {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+/* Invite CTA Banner (Progressive Disclosure) */
+.invite-cta-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.invite-cta-banner h6 {
+    margin-bottom: 0.25rem;
+    color: white;
+}
+
+.invite-cta-banner small {
+    opacity: 0.95;
+}
+
+.invite-cta-banner .btn-light {
+    font-weight: 600;
+}
+
+/* Dual-Mode Dashboard Layout */
+.dual-mode-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 991px) {
+    .dual-mode-dashboard {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
+
+/* Single Mode View */
+#single-mode-view h4 {
+    margin-bottom: 1.5rem;
+}
+
+/* Activity Feed */
+.activity-feed {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    padding: 0.75rem;
+    border-left: 3px solid #ff8c42;
+    margin-bottom: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.activity-item:hover {
+    background: #e9ecef;
+}
+
+.activity-item .activity-time {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.activity-item .activity-text {
+    margin: 0.25rem 0 0 0;
+}
+
+.activity-item .activity-user {
+    font-weight: 600;
+    color: #ff8c42;
+}
+
+.activity-feed:empty::before {
+    content: "No recent activity";
+    display: block;
+    text-align: center;
+    color: #6c757d;
+    padding: 2rem;
+}

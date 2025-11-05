@@ -13,43 +13,76 @@ declare const bootstrap: any;
 // ============================================================================
 
 /**
- * Load and display all user's decks
+ * Load and display all user's decks with progressive disclosure
  */
 async function loadDecks(): Promise<void> {
     const loading = document.getElementById('decks-loading');
-    const sharedSection = document.getElementById('shared-decks-section');
-    const personalSection = document.getElementById('personal-decks-section');
+    const singleModeView = document.getElementById('single-mode-view');
+    const dualModeView = document.getElementById('dual-mode-view');
+    const coursesSection = document.getElementById('courses-section');
+    const collectionsSection = document.getElementById('collections-section');
+    const singleCollectionsSection = document.getElementById('single-collections-section');
     const noDecks = document.getElementById('no-decks');
-    const sharedGrid = document.getElementById('shared-decks-grid');
-    const personalGrid = document.getElementById('personal-decks-grid');
+    const coursesGrid = document.getElementById('courses-grid');
+    const collectionsGrid = document.getElementById('collections-grid');
+    const singleCollectionsGrid = document.getElementById('single-collections-grid');
 
-    if (!loading || !sharedSection || !personalSection || !noDecks || !sharedGrid || !personalGrid) return;
+    if (!loading || !singleModeView || !dualModeView) return;
 
     try {
-        const response = await api.getDecks();
-        const personalDecks = response.personal || [];
-        const sharedDecks = response.shared || [];
+        // Fetch both decks and partnership status
+        const [decksResponse, partnershipResponse] = await Promise.all([
+            api.getDecks(),
+            api.getPartnership()
+        ]);
+
+        const collections = decksResponse.collections || [];
+        const courses = decksResponse.courses || [];
+        const hasPartnership = partnershipResponse !== null;
 
         // Hide loading
         loading.style.display = 'none';
 
-        if (personalDecks.length === 0 && sharedDecks.length === 0) {
-            noDecks.style.display = 'block';
+        if (collections.length === 0 && courses.length === 0) {
+            if (noDecks) noDecks.style.display = 'block';
             return;
         }
 
-        // Show shared decks if any
-        if (sharedDecks.length > 0) {
-            sharedSection.style.display = 'block';
-            const sharedCards = sharedDecks.map(deck => createDeckCard(deck, true));
-            sharedGrid.innerHTML = sharedCards.join('');
+        // Progressive disclosure based on partnership status
+        if (hasPartnership) {
+            // DUAL MODE: Show both buddy and personal sections
+            singleModeView.style.display = 'none';
+            dualModeView.style.display = ''; // Remove inline style to let CSS grid take over
+
+            // Show courses section if any
+            if (courses.length > 0 && coursesSection && coursesGrid) {
+                coursesSection.style.display = 'block';
+                const courseCards = courses.map(deck => createDeckCard(deck, true));
+                coursesGrid.innerHTML = courseCards.join('');
+            }
+
+            // Show collections section if any
+            if (collections.length > 0 && collectionsSection && collectionsGrid) {
+                collectionsSection.style.display = 'block';
+                const collectionCards = collections.map(deck => createDeckCard(deck, false));
+                collectionsGrid.innerHTML = collectionCards.join('');
+            }
+        } else {
+            // SINGLE MODE: Show only collections with invite banner
+            singleModeView.style.display = 'block';
+            dualModeView.style.display = 'none';
+
+            // Show collections in single mode
+            if (collections.length > 0 && singleCollectionsSection && singleCollectionsGrid) {
+                singleCollectionsSection.style.display = 'block';
+                const collectionCards = collections.map(deck => createDeckCard(deck, false));
+                singleCollectionsGrid.innerHTML = collectionCards.join('');
+            }
         }
 
-        // Show personal decks if any
-        if (personalDecks.length > 0) {
-            personalSection.style.display = 'block';
-            const personalCards = personalDecks.map(deck => createDeckCard(deck, false));
-            personalGrid.innerHTML = personalCards.join('');
+        // Load activity feed if in dual mode with partnership
+        if (hasPartnership) {
+            await loadActivityFeed();
         }
 
     } catch (error) {
@@ -67,12 +100,12 @@ async function loadDecks(): Promise<void> {
 /**
  * Create HTML for a single deck card
  */
-function createDeckCard(deck: any, isShared: boolean = false): string {
-    const sharedBadge = isShared
-        ? `<span class="badge bg-info"><i class="bi bi-people-fill"></i> Shared</span> `
-        : '';
+function createDeckCard(deck: any, isCourse: boolean = false): string {
+    const typeBadge = isCourse
+        ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Course</span> `
+        : `<span class="badge collection-badge"><i class="bi bi-book"></i> Collection</span> `;
 
-    const creatorInfo = (isShared && deck.created_by)
+    const creatorInfo = (isCourse && deck.created_by)
         ? `<small class="text-muted d-block">Created by @${escapeHtml(deck.created_by.username)}</small>`
         : '';
 
@@ -81,7 +114,7 @@ function createDeckCard(deck: any, isShared: boolean = false): string {
             <div class="card deck-card h-100">
                 <div class="card-body">
                     <h5 class="card-title">
-                        ${sharedBadge}${escapeHtml(deck.title)}
+                        ${typeBadge}${escapeHtml(deck.title)}
                     </h5>
                     ${creatorInfo}
                     <p class="card-text text-muted">${escapeHtml(deck.description) || 'No description'}</p>
@@ -251,6 +284,68 @@ function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============================================================================
+// Activity Feed
+// ============================================================================
+
+/**
+ * Load and display partnership activity feed
+ */
+async function loadActivityFeed(): Promise<void> {
+    const activityFeed = document.getElementById('activity-feed');
+    if (!activityFeed) return;
+
+    try {
+        const response = await api.getActivities(10);
+
+        if (!response.has_partnership || response.activities.length === 0) {
+            activityFeed.innerHTML = '<div class="text-center text-muted py-3">No recent activity</div>';
+            return;
+        }
+
+        const activitiesHtml = response.activities.map((activity: any) => {
+            const timeAgo = formatTimeAgo(new Date(activity.created_at));
+            return `
+                <div class="activity-item">
+                    <div class="activity-time">${timeAgo}</div>
+                    <p class="activity-text">
+                        <span class="activity-user">@${escapeHtml(activity.user.username)}</span>
+                        ${escapeHtml(activity.display_text)}
+                    </p>
+                </div>
+            `;
+        }).join('');
+
+        activityFeed.innerHTML = activitiesHtml;
+
+    } catch (error) {
+        console.error('Failed to load activity feed:', error);
+        activityFeed.innerHTML = '<div class="text-center text-muted py-3">Failed to load activities</div>';
+    }
+}
+
+/**
+ * Format timestamp as "X minutes ago", "X hours ago", etc.
+ */
+function formatTimeAgo(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffMins > 0) {
+        return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    } else {
+        return 'Just now';
+    }
 }
 
 // ============================================================================

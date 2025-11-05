@@ -32,6 +32,7 @@ interface Deck {
 	cards_due: number;
 	created_at: string;
 	updated_at: string;
+	type?: 'course' | 'collection';
 	is_shared?: boolean;
 	created_by?: {
 		id: number;
@@ -122,8 +123,8 @@ interface PartnershipInvitation {
 }
 
 interface DecksResponse {
-	personal: Deck[];
-	shared: Deck[];
+	collections: Deck[];
+	courses: Deck[];
 }
 
 // ============================================================================
@@ -289,12 +290,21 @@ class FlashcardAPI {
 	// Statistics Endpoints
 	// ========================================================================
 
-	async getUserStats(): Promise<Statistics> {
-		return this.fetch<Statistics>(`${this.baseURL}/stats/`);
+	async getUserStats(filter?: 'all' | 'courses' | 'collections'): Promise<Statistics> {
+		const params = filter && filter !== 'all' ? `?filter=${filter}` : '';
+		return this.fetch<Statistics>(`${this.baseURL}/stats/${params}`);
 	}
 
 	async getDeckStats(deckId: number): Promise<any> {
 		return this.fetch<any>(`${this.baseURL}/decks/${deckId}/stats/`);
+	}
+
+	// ========================================================================
+	// Activity Endpoints
+	// ========================================================================
+
+	async getActivities(limit: number = 10): Promise<any> {
+		return this.fetch<any>(`${this.baseURL}/activity/?limit=${limit}`);
 	}
 
 	// ========================================================================

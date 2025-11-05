@@ -11,6 +11,7 @@ urlpatterns = [
     # Page Views
     # ========================================================================
     path('', views.index, name='index'),
+    path('welcome/', views.welcome, name='welcome'),
     path('decks/<int:deck_id>/', views.deck_detail, name='deck_detail'),
     path('decks/<int:deck_id>/study/', views.study_view, name='study'),
     path('stats/', views.stats_view, name='stats'),
@@ -59,4 +60,9 @@ urlpatterns = [
     path('api/partnership/accept/', views.partnership_accept, name='api_partnership_accept'),
     path('api/partnership/', views.partnership_get, name='api_partnership_get'),
     path('api/partnership/dissolve/', views.partnership_dissolve, name='api_partnership_dissolve'),
+
+    # ========================================================================
+    # Activity API Endpoints
+    # ========================================================================
+    path('api/activity/', views.activity_feed, name='api_activity_feed'),
 ]

@@ -77,13 +77,14 @@ def get_due_cards(deck):
     return deck.cards.filter(next_review__lte=timezone.now()).order_by('next_review')
 
 
-def get_study_stats(user, deck=None):
+def get_study_stats(user, deck=None, deck_filter=None):
     """
     Calculate study statistics for a user or specific deck.
 
     Args:
         user: User model instance
         deck: Optional Deck model instance for deck-specific stats
+        deck_filter: Optional queryset of Deck instances to filter by (for courses/collections)
 
     Returns:
         dict with statistics:
@@ -103,6 +104,11 @@ def get_study_stats(user, deck=None):
         reviews = Review.objects.filter(card__deck=deck)
         cards = Card.objects.filter(deck=deck)
         total_decks = 1
+    elif deck_filter is not None:
+        # Filter by specific set of decks (courses or collections)
+        reviews = Review.objects.filter(session__user=user, card__deck__in=deck_filter)
+        cards = Card.objects.filter(deck__in=deck_filter)
+        total_decks = deck_filter.count()
     else:
         reviews = Review.objects.filter(session__user=user)
         cards = Card.objects.filter(deck__user=user)
