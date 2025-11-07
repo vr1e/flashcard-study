@@ -70,6 +70,9 @@ async function loadCards(deckId: number): Promise<void> {
 
         cardsList.innerHTML = cards.map((card: any) => createCardItem(card)).join('');
 
+        // Attach event listeners to card action buttons
+        attachCardEventListeners();
+
     } catch (error) {
         console.error('Failed to load cards:', error);
         cardsList.innerHTML = `
@@ -89,11 +92,6 @@ function createCardItem(card: any): string {
     const langB = card.language_b || card.back || '';
     const context = card.context || '';
 
-    // Escape for onclick attribute - need to escape quotes
-    const escapedLangA = escapeHtml(langA).replace(/'/g, "\\'");
-    const escapedLangB = escapeHtml(langB).replace(/'/g, "\\'");
-    const escapedContext = escapeHtml(context).replace(/'/g, "\\'");
-
     return `
         <div class="card card-item mb-2">
             <div class="card-body">
@@ -109,10 +107,16 @@ function createCardItem(card: any): string {
                     </div>
                     <div class="col-md-2 text-end">
                         <div class="btn-group mt-2">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editCard(${card.id}, '${escapedLangA}', '${escapedLangB}', '${escapedContext}')">
+                            <button class="btn btn-sm btn-outline-primary card-edit-btn"
+                                    data-card-id="${card.id}"
+                                    data-language-a="${escapeHtml(langA)}"
+                                    data-language-b="${escapeHtml(langB)}"
+                                    data-context="${escapeHtml(context)}">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCard(${card.id}, ${card.deck})">
+                            <button class="btn btn-sm btn-outline-danger card-delete-btn"
+                                    data-card-id="${card.id}"
+                                    data-deck-id="${card.deck}">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -121,6 +125,37 @@ function createCardItem(card: any): string {
             </div>
         </div>
     `;
+}
+
+/**
+ * Attach event listeners to card action buttons
+ */
+function attachCardEventListeners(): void {
+    // Attach edit button listeners
+    const editButtons = document.querySelectorAll('.card-edit-btn');
+    editButtons.forEach((button) => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const btn = button as HTMLElement;
+            const cardId = parseInt(btn.dataset.cardId || '0', 10);
+            const languageA = btn.dataset.languageA || '';
+            const languageB = btn.dataset.languageB || '';
+            const context = btn.dataset.context || '';
+            editCard(cardId, languageA, languageB, context);
+        });
+    });
+
+    // Attach delete button listeners
+    const deleteButtons = document.querySelectorAll('.card-delete-btn');
+    deleteButtons.forEach((button) => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const btn = button as HTMLElement;
+            const cardId = parseInt(btn.dataset.cardId || '0', 10);
+            const deckId = parseInt(btn.dataset.deckId || '0', 10);
+            deleteCard(cardId, deckId);
+        });
+    });
 }
 
 // ============================================================================

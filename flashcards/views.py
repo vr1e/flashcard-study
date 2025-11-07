@@ -539,8 +539,16 @@ def card_create(request, deck_id):
         # Add partner if deck is shared
         partnership = deck.partnerships.filter(is_active=True).first()
         if partnership:
-            partner = partnership.user_b if partnership.user_a == deck.user else partnership.user_a
-            users_with_access.append(partner)
+            # Use partnership's get_partner method for safer partner identification
+            try:
+                partner = partnership.get_partner(request.user)
+                users_with_access.append(partner)
+            except ValueError:
+                # Current user is not in partnership, add both partners to be safe
+                if partnership.user_a not in users_with_access:
+                    users_with_access.append(partnership.user_a)
+                if partnership.user_b not in users_with_access:
+                    users_with_access.append(partnership.user_b)
 
         # Create progress records for both directions for each user
         for user in users_with_access:
@@ -914,7 +922,15 @@ def deck_stats(request, deck_id):
     from .utils import get_study_stats
 
     try:
-        deck = Deck.objects.get(id=deck_id, user=request.user)
+        deck = Deck.objects.get(id=deck_id)
+
+        # Check if user has permission to view this deck
+        if not deck.can_view(request.user):
+            return JsonResponse({
+                'success': False,
+                'error': {'code': 'FORBIDDEN', 'message': 'You do not have permission to view this deck'}
+            }, status=403)
+
         stats = get_study_stats(request.user, deck=deck)
         return JsonResponse({'success': True, 'data': stats})
     except Deck.DoesNotExist:
