@@ -22,7 +22,8 @@ The `rfcs/` directory contains technical design documents that describe features
 | [0006](rfcs/0006-automated-deployment.md)            | Automated Deployment          | ✅ Implemented | 90%      | GitHub Actions CI/CD, manual migrations required          |
 | [0007](rfcs/0007-partnership-shared-decks.md)        | Partnership/Shared Decks      | ✅ Implemented | 100%     | Full partnership system with UI (PR #3)                   |
 | [0008](rfcs/0008-bidirectional-language-learning.md) | Bidirectional Learning        | ✅ Implemented | 100%     | Language fields, direction selection, per-user progress   |
-| [0009](rfcs/0009-course-collection-terminology.md)   | Course/Collection Terminology | 🔮 Planned     | 0%       | UX vision, depends on RFC 0007 completion                 |
+| [0009](rfcs/0009-course-collection-terminology.md)   | Course/Collection Terminology | ✅ Implemented | 100%     | Progressive disclosure, activity feed, stats filtering    |
+| [0010](rfcs/0010-shared-deck-permission-bugs.md)     | Permission & Security Bugs    | ✅ Implemented | 100%     | 7 bugs fixed: permissions, CSP, error messages            |
 
 **Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned
 
@@ -46,6 +47,16 @@ The `rfcs/` directory contains technical design documents that describe features
   - Language-aware cards (language_a/language_b with codes)
   - Study direction selection (A→B, B→A, Random)
   - UserCardProgress model for separate SM-2 tracking
+- **RFC 0009**: Course/Collection terminology with progressive disclosure
+  - Dual-mode dashboard (single-mode before partnership, dual-mode after)
+  - Welcome page for first-time users
+  - Activity feed system
+  - Stats filtering (all/courses/collections)
+- **RFC 0010**: Permission and security bug fixes
+  - Fixed deck_stats permissions for partners
+  - Fixed global stats to include shared decks
+  - Replaced inline onclick handlers (CSP compliance)
+  - Improved error messages with specific codes
 
 #### 🚧 Incomplete Features
 
@@ -53,41 +64,28 @@ The `rfcs/` directory contains technical design documents that describe features
   - Critical gap for production confidence
   - Manual testing and Playwright E2E only
 
-#### 🔮 Future Features (Not Started)
-
-- **RFC 0009**: UI/UX terminology changes for partnership features
-
 ---
 
 ### Development Roadmap
 
-#### Phase 1: Stability & Testing (Recommended Next Steps)
+#### Current Focus: Testing & Stability
 
 **Goal**: Production confidence and code quality
 
-1. **Implement RFC 0004 (Testing Strategy)**
+1. **Implement RFC 0004 (Testing Strategy)** ← Highest Priority
 
    - Add pytest test suite (~25-30 tests)
    - SM-2 algorithm unit tests
    - API endpoint integration tests
    - Model method tests
+   - Partnership and permission tests
    - **Effort**: 2-3 days
 
-2. **Bug Fixes**
-   - Fix shared deck permissions in card listing
+2. **Additional Bug Fixes & Enhancements**
    - Add rate limiting to partnership invites
    - Input validation for card text length
+   - Performance optimization for large decks
    - **Effort**: 4-6 hours
-
-#### Phase 2: UX Polish (RFC 0009)
-
-**Goal**: Complete couples learning platform UX
-
-1. **RFC 0009**: UX improvements
-   - Terminology changes ("Decks" → "Courses/Collections")
-   - Color-coded shared vs personal decks
-   - Progressive disclosure of partnership features
-   - **Effort**: 1-2 days
 
 ---
 
@@ -97,12 +95,14 @@ The `rfcs/` directory contains technical design documents that describe features
 Core Flashcard System:        ███████████████████████████████ 100%
 Partnership/Sharing:          ███████████████████████████████ 100%
 Bidirectional Learning:       ███████████████████████████████ 100%
+UX & Terminology (RFC 0009):  ███████████████████████████████ 100%
+Bug Fixes (RFC 0010):         ███████████████████████████████ 100%
 Automated Testing:            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
-**Current Status**: Couples language learning platform (fully functional)
-**Next Milestone**: Add test coverage (RFC 0004)
-**Future Enhancements**: Data migration (RFC 0009), UX polish (RFC 0010)
+**Current Status**: Couples language learning platform (fully functional, production-ready UX)
+**Next Milestone**: Add comprehensive test coverage (RFC 0004)
+**Current Branch**: `fix/rfc-0010-permission-and-security-bugs` (ready for PR)
 
 #### RFC Process
 

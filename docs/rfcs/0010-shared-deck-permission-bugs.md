@@ -1,7 +1,9 @@
 # RFC 0010: Shared Deck Permission Bugs
 
-**Status**: Identified
+**Status**: ✅ Implemented
 **Date**: 2025-01-04
+**Fixed**: 2025-01-08
+**Branch**: `fix/rfc-0010-permission-and-security-bugs`
 
 ## Bug List
 
@@ -136,3 +138,33 @@ direction: (() => {
 - All other views (deck_detail, card_list, study_session, etc.) correctly use `can_view()`/`can_edit()`
 - Only `deck_stats` has the permission bug
 - API returns error codes: `INVALID_CODE`, `EXPIRED`, `SELF_INVITATION`, `ALREADY_PARTNERED`, `NO_PARTNERSHIP`
+
+---
+
+## Implementation Summary (2025-01-08)
+
+### All 7 Bugs Fixed ✅
+
+**Commits**:
+- `7335ca9` - "Fix 7 bugs from RFC 0010: permissions, security, and UX improvements"
+- `08687f5` - "improve cards.ts security add migrations"
+
+### Changes by Bug
+
+1. **✅ deck_stats permissions** - Fixed to use `can_view()` permission check
+2. **✅ Global stats** - Now includes cards from partnership decks
+3. **✅ Partner identification** - Improved to get both partners from partnership directly
+4. **✅ user vs created_by** - Documented and clarified semantics
+5. **✅ Generic error messages** - Added specific error code parsing in frontend
+6. **✅ Inline onclick handlers** - Replaced with data attributes and event listeners (CSP compliant)
+7. **✅ Silent fallback** - Added console warnings when card.direction is missing
+
+### Security Improvements
+
+- **CSP Compliance**: Removed all inline `onclick` handlers
+- **XSS Prevention**: Using data attributes instead of string concatenation
+- **Better Error Messages**: Users now see specific error codes for partnership failures
+
+### Status
+
+Ready for PR to merge into `main`
