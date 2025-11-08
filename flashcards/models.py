@@ -23,15 +23,30 @@ class Deck(models.Model):
     A deck is a collection of flashcards.
 
     Can be personal (owned by one user) or shared (via Partnership).
+
+    Field distinctions:
+    - `user`: The primary owner of the deck. Used for permission checks and filtering.
+              For personal decks, this is the sole owner. For shared decks, this is
+              typically the user who created the deck, but both partners have access
+              via the Partnership model.
+    - `created_by`: Historical record of who originally created this deck.
+                    Uses SET_NULL to preserve data if user is deleted.
+
+    In practice, both fields are set to the same user at creation time.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='decks')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='decks',
+        help_text="Primary owner of the deck (for filtering and cascade deletion)"
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='created_decks',
-        help_text="User who created this deck"
+        help_text="User who originally created this deck (historical record)"
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)

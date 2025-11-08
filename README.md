@@ -26,7 +26,7 @@ git clone <repository-url>
 cd flashcard-study
 
 # 2. Create virtual environment (recommended)
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # 3. Install dependencies

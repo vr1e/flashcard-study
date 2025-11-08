@@ -109,12 +109,18 @@ class StudyController {
 		const card = this.cards[this.currentIndex];
 		const timeSpent = Math.floor((Date.now() - this.cardStartTime) / 1000);
 
+		// Warn if card.direction is missing (potential data integrity issue)
+		const direction = card.direction || 'A_TO_B';
+		if (!card.direction) {
+			console.warn(`Card ${card.id} is missing direction field, defaulting to 'A_TO_B'. This may indicate a data integrity issue.`);
+		}
+
 		try {
 			await api.submitReview(card.id, {
 				session_id: this.sessionId,
 				quality: quality,
 				time_taken: timeSpent,
-				direction: card.direction || 'A_TO_B', // Default to A_TO_B for backward compatibility
+				direction: direction,
 			});
 
 			// Track quality for average calculation

@@ -110,9 +110,19 @@ def get_study_stats(user, deck=None, deck_filter=None):
         cards = Card.objects.filter(deck__in=deck_filter)
         total_decks = deck_filter.count()
     else:
+        from django.db.models import Q
+
         reviews = Review.objects.filter(session__user=user)
-        cards = Card.objects.filter(deck__user=user)
-        total_decks = Deck.objects.filter(user=user).count()
+
+        # Include both owned decks and partnership decks
+        user_decks = Deck.objects.filter(
+            Q(user=user) |
+            Q(partnerships__user_a=user, partnerships__is_active=True) |
+            Q(partnerships__user_b=user, partnerships__is_active=True)
+        ).distinct()
+
+        cards = Card.objects.filter(deck__in=user_decks)
+        total_decks = user_decks.count()
 
     # Basic statistics
     total_reviews = reviews.count()

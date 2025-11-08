@@ -103,6 +103,32 @@
 
     let currentPartnership = null;
 
+    /**
+     * Get user-friendly error message from API error code
+     */
+    function getErrorMessage(error) {
+        // If error has a code property, map it to a user-friendly message
+        if (error && error.error && error.error.code) {
+            const errorCode = error.error.code;
+            const errorMessages = {
+                'ALREADY_PARTNERED': 'You already have an active partnership. Dissolve your current partnership first.',
+                'INVALID_INPUT': 'Please enter a valid 6-character code.',
+                'INVALID_CODE': 'This invitation code is not valid. Please check the code and try again.',
+                'EXPIRED': 'This invitation has expired. Please ask your partner to generate a new code.',
+                'SELF_INVITATION': 'You cannot accept your own invitation code.',
+                'NO_PARTNERSHIP': 'No active partnership found.',
+                'INVALID_JSON': 'Invalid request. Please try again.'
+            };
+
+            return errorMessages[errorCode] || error.error.message || 'An error occurred. Please try again.';
+        }
+
+        // Fallback to generic message
+        return error && error.error && error.error.message
+            ? error.error.message
+            : 'An error occurred. Please try again.';
+    }
+
     async function loadPartnershipStatus() {
         try {
             currentPartnership = await api.getPartnership();
@@ -151,7 +177,7 @@
             document.getElementById('invitation-display').style.display = 'block';
         } catch (error) {
             console.error('Failed to create invitation:', error);
-            alert('Failed to create invitation. You may already have an active partnership.');
+            alert(getErrorMessage(error));
         }
     }
 
@@ -169,7 +195,7 @@
             window.location.reload();
         } catch (error) {
             console.error('Failed to accept invitation:', error);
-            alert('Failed to accept invitation. The code may be invalid or expired.');
+            alert(getErrorMessage(error));
         }
     }
 
@@ -184,7 +210,7 @@
             window.location.reload();
         } catch (error) {
             console.error('Failed to dissolve partnership:', error);
-            alert('Failed to dissolve partnership. Please try again.');
+            alert(getErrorMessage(error));
         }
     }
 
