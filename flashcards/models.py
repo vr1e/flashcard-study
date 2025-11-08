@@ -29,11 +29,10 @@ class Deck(models.Model):
               For personal decks, this is the sole owner. For shared decks, this is
               typically the user who created the deck, but both partners have access
               via the Partnership model.
-    - `created_by`: Historical record of who originally created this deck. Preserved
-                    even if ownership changes (though currently ownership doesn't change).
+    - `created_by`: Historical record of who originally created this deck.
                     Uses SET_NULL to preserve data if user is deleted.
 
-    In practice, both fields are usually set to the same user at creation time.
+    In practice, both fields are set to the same user at creation time.
     """
     user = models.ForeignKey(
         User,
