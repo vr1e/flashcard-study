@@ -76,623 +76,206 @@ A bidirectional language learning system provides:
 
 ##### Card Model Changes
 
-**Current (Generic):**
-```python
-class Card(models.Model):
-    deck = ForeignKey(Deck, on_delete=CASCADE)
-    front = TextField()  # Generic question
-    back = TextField()   # Generic answer
+**Change Summary:** Transform generic flashcards into language-specific bidirectional cards.
 
-    # SM-2 fields (PROBLEM: shared across all users)
-    ease_factor = FloatField(default=2.5)
-    interval = IntegerField(default=1)
-    repetitions = IntegerField(default=0)
-    next_review = DateTimeField()
+**Removed Fields:**
+- `front`, `back` - Generic question/answer fields
+- `ease_factor`, `interval`, `repetitions`, `next_review` - SM-2 fields (moved to UserCardProgress)
 
-    created_at = DateTimeField(auto_now_add=True)
-```
+**New Fields:**
+- `language_a` - First language text (TextField)
+- `language_b` - Second language text (TextField)
+- `language_a_code` - ISO 639-1 language code (CharField, e.g., 'sr', 'de', 'en')
+- `language_b_code` - ISO 639-1 language code (CharField)
+- `context` - Optional usage example or notes (TextField, blank=True)
+- `updated_at` - Last modification timestamp
 
-**New (Language-Specific):**
-```python
-class Card(models.Model):
-    """
-    Language-aware flashcard.
+**Key Changes:**
+- Cards now represent language pairs instead of generic Q&A
+- SM-2 tracking moved to per-user, per-direction model (UserCardProgress)
+- Supports bidirectional study (A→B or B→A)
+- Index on (deck, created_at) for efficient queries
 
-    Each card represents a word/phrase in two languages.
-    Can be studied in either direction (A→B or B→A).
-    SM-2 progress is tracked per user per direction (see UserCardProgress).
-    """
-    deck = ForeignKey(Deck, on_delete=CASCADE, related_name='cards')
-
-    # Language content
-    language_a = TextField(help_text="First language (e.g., Serbian word)")
-    language_b = TextField(help_text="Second language (e.g., German translation)")
-
-    # Language metadata
-    language_a_code = CharField(
-        max_length=10,
-        default='sr',
-        help_text="ISO 639-1 language code (e.g., 'sr', 'de', 'en')"
-    )
-    language_b_code = CharField(
-        max_length=10,
-        default='de',
-        help_text="ISO 639-1 language code"
-    )
-
-    # Optional context
-    context = TextField(
-        blank=True,
-        help_text="Usage example or additional notes"
-    )
-
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
-
-    # Remove: ease_factor, interval, repetitions, next_review
-    # These now live in UserCardProgress
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['deck', 'created_at']),
-        ]
-
-    def __str__(self):
-        return f"{self.language_a} ↔ {self.language_b}"
-```
-
-**Migration Note**: Existing `front` → `language_a`, `back` → `language_b` (see RFC 0009).
+**Migration Strategy:** Existing cards migrate `front` → `language_a`, `back` → `language_b` (see RFC 0009)
 
 ##### UserCardProgress Model (NEW)
 
 **Purpose**: Track SM-2 progress per user, per card, per direction.
 
-```python
-class UserCardProgress(models.Model):
-    """
-    Individual user's spaced repetition progress for a card in a specific direction.
+Enables partners to study the same card at their own pace, and users to have different progress for each study direction.
 
-    Example:
-    - User A learning Serbian→German: separate progress
-    - User A learning German→Serbian: separate progress
-    - User B learning Serbian→German: separate progress
+**Fields:**
 
-    This allows partners to study the same card at their own pace.
-    """
+**Identifiers:**
+- `user` - User studying this card (ForeignKey to User, CASCADE delete)
+- `card` - Card being studied (ForeignKey to Card, CASCADE delete)
+- `study_direction` - Direction ('A_TO_B' or 'B_TO_A')
 
-    # Identifiers
-    user = ForeignKey(
-        User,
-        on_delete=CASCADE,
-        related_name='card_progress',
-        help_text="User studying this card"
-    )
-    card = ForeignKey(
-        Card,
-        on_delete=CASCADE,
-        related_name='user_progress',
-        help_text="The card being studied"
-    )
-    study_direction = CharField(
-        max_length=10,
-        choices=[
-            ('A_TO_B', 'Language A → Language B'),
-            ('B_TO_A', 'Language B → Language A'),
-        ],
-        help_text="Which direction user is studying"
-    )
+**SM-2 Algorithm Fields:**
+- `ease_factor` - Difficulty multiplier (Float, default 2.5, minimum 1.3)
+- `interval` - Days until next review (Integer, default 1)
+- `repetitions` - Consecutive successful reviews count (Integer, default 0)
+- `next_review` - When card is due for review (DateTime, defaults to now)
 
-    # SM-2 algorithm fields (per user, per direction)
-    ease_factor = FloatField(
-        default=2.5,
-        help_text="Difficulty multiplier (1.3 minimum)"
-    )
-    interval = IntegerField(
-        default=1,
-        help_text="Days until next review"
-    )
-    repetitions = IntegerField(
-        default=0,
-        help_text="Consecutive successful reviews"
-    )
-    next_review = DateTimeField(
-        default=timezone.now,
-        help_text="When this card is due for review"
-    )
+**Metadata:**
+- `created_at`, `updated_at` - Timestamps
 
-    # Metadata
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
+**Constraints:**
+- Unique together on (user, card, study_direction) - ensures one progress record per combination
+- Index on (user, next_review) for efficient "cards due now" queries
+- Index on (user, card) for lookups
 
-    class Meta:
-        unique_together = [['user', 'card', 'study_direction']]
-        indexes = [
-            models.Index(fields=['user', 'next_review']),
-            models.Index(fields=['user', 'card']),
-        ]
-        verbose_name_plural = "User card progress records"
+**Helper Methods:**
+- `is_due()` - Returns true if next_review <= now
 
-    def __str__(self):
-        direction = "→" if self.study_direction == 'A_TO_B' else "←"
-        return f"{self.user.username}: {self.card} ({direction})"
+**Example Usage:**
 
-    def is_due(self):
-        """Check if card is due for review."""
-        return self.next_review <= timezone.now()
-```
+For a card "здраво" (Serbian) ↔ "hallo" (German):
 
-**Key Design Points**:
+- **Partner A learning German** (Serbian→German): Has UserCardProgress with study_direction='A_TO_B'
+- **Partner A practicing German→Serbian**: Has separate UserCardProgress with study_direction='B_TO_A' and different SM-2 values
+- **Partner B learning Serbian** (German→Serbian): Has their own UserCardProgress with study_direction='B_TO_A' and independent SM-2 tracking
 
-1. **Unique together constraint**: Each (user, card, direction) combination is unique
-2. **Separate direction tracking**: Same user can have different progress for A→B vs B→A
-3. **Index on (user, next_review)**: Efficient querying for "cards due now"
-4. **Default next_review**: New cards are immediately available for study
-
-**Example Data**:
-
-```python
-# Card: "здраво" (sr) ↔ "hallo" (de)
-
-# Partner A (learning German) - Serbian → German
-UserCardProgress(
-    user=partner_a,
-    card=card_1,
-    study_direction='A_TO_B',
-    ease_factor=2.5,
-    interval=1,
-    repetitions=0,
-    next_review=now
-)
-
-# Partner A (learning German backwards) - German → Serbian
-UserCardProgress(
-    user=partner_a,
-    card=card_1,
-    study_direction='B_TO_A',
-    ease_factor=2.8,  # Different progress!
-    interval=6,
-    repetitions=2,
-    next_review=now + 6 days
-)
-
-# Partner B (learning Serbian) - German → Serbian
-UserCardProgress(
-    user=partner_b,
-    card=card_1,
-    study_direction='B_TO_A',
-    ease_factor=2.3,
-    interval=1,
-    repetitions=0,
-    next_review=now
-)
-```
+Each progress record tracks completely independent SM-2 state.
 
 ##### Review Model Changes
 
-**Current:**
-```python
-class Review(models.Model):
-    card = ForeignKey(Card, on_delete=CASCADE)
-    session = ForeignKey(StudySession, on_delete=CASCADE)
-    quality = IntegerField()
-    reviewed_at = DateTimeField(auto_now_add=True)
-    time_taken = IntegerField()
-```
+**Added Field:**
+- `study_direction` - Direction studied for this review ('A_TO_B' or 'B_TO_A')
+- Quality field now has choices constraint (0-5)
 
-**Modified:**
-```python
-class Review(models.Model):
-    card = ForeignKey(Card, on_delete=CASCADE)
-    session = ForeignKey(StudySession, on_delete=CASCADE)
-    quality = IntegerField(
-        choices=[(i, str(i)) for i in range(6)],
-        help_text="User rating 0-5"
-    )
-    study_direction = CharField(  # NEW
-        max_length=10,
-        choices=[
-            ('A_TO_B', 'Language A → Language B'),
-            ('B_TO_A', 'Language B → Language A'),
-        ],
-        help_text="Direction studied for this review"
-    )
-    reviewed_at = DateTimeField(auto_now_add=True)
-    time_taken = IntegerField(help_text="Seconds spent on card")
+**Purpose:** Track which direction was studied for analytics (e.g., "Which direction is harder for this user?")
 
-    # Reverse relationship to get user
-    # user = session.user
-```
-
-**Why add direction**: For analytics and statistics (e.g., "Which direction is harder?").
+**Other Fields (unchanged):**
+- `card`, `session`, `quality`, `reviewed_at`, `time_taken`
 
 ##### StudySession Model Changes
 
-**Current:**
-```python
-class StudySession(models.Model):
-    user = ForeignKey(User, on_delete=CASCADE)
-    deck = ForeignKey(Deck, on_delete=CASCADE)
-    started_at = DateTimeField(auto_now_add=True)
-    ended_at = DateTimeField(null=True, blank=True)
-    cards_studied = IntegerField(default=0)
-```
+**Added Field:**
+- `study_direction` - Primary direction for session ('A_TO_B', 'B_TO_A', or null)
 
-**Modified:**
-```python
-class StudySession(models.Model):
-    user = ForeignKey(User, on_delete=CASCADE)
-    deck = ForeignKey(Deck, on_delete=CASCADE)
-    study_direction = CharField(  # NEW
-        max_length=10,
-        choices=[
-            ('A_TO_B', 'Language A → Language B'),
-            ('B_TO_A', 'Language B → Language A'),
-        ],
-        null=True,
-        blank=True,
-        help_text="Primary direction for this session (null if mixed)"
-    )
-    started_at = DateTimeField(auto_now_add=True)
-    ended_at = DateTimeField(null=True, blank=True)
-    cards_studied = IntegerField(default=0)
-```
+**Purpose:** Track session-level study direction. Set to null for mixed-direction sessions (future feature).
 
-**Note**: `study_direction` can be null for mixed-direction sessions (future feature).
+**Other Fields (unchanged):**
+- `user`, `deck`, `started_at`, `ended_at`, `cards_studied`
 
 #### Modified SM-2 Algorithm
 
-**Current Implementation** (`flashcards/utils.py`):
-```python
-def calculate_next_review(card, quality):
-    """Operates on Card model directly."""
-    if quality < 3:
-        card.repetitions = 0
-        card.interval = 1
-    else:
-        # ... calculate interval
-        card.repetitions += 1
+**Change Summary:** Function signature updated to accept `UserCardProgress` instead of `Card`. Core SM-2 logic remains identical.
 
-    card.ease_factor = max(1.3, ...)
-    card.next_review = timezone.now() + timedelta(days=card.interval)
+**Old:** `calculate_next_review(card, quality)`
+**New:** `calculate_next_review(progress, quality)`
 
-    return card
-```
+**Function Behavior:**
 
-**New Implementation**:
-```python
-def calculate_next_review(progress, quality):
-    """
-    Apply SM-2 algorithm to UserCardProgress.
+**Input:**
+- `progress` - UserCardProgress instance (contains ease_factor, interval, repetitions, next_review)
+- `quality` - Integer 0-5 (user's self-assessment)
 
-    Args:
-        progress: UserCardProgress instance
-        quality: int (0-5) user rating
+**Logic:**
+1. If quality < 3 (failed):
+   - Reset repetitions to 0
+   - Set interval to 1 day
+2. If quality >= 3 (passed):
+   - If 1st repetition: interval = 1 day
+   - If 2nd repetition: interval = 6 days
+   - If 3rd+ repetition: interval = previous_interval × ease_factor (rounded)
+   - Increment repetitions
+3. Adjust ease_factor using SM-2 formula: `EF + (0.1 - (5-q) × (0.08 + (5-q) × 0.02))`
+4. Enforce minimum ease_factor of 1.3
+5. Calculate next_review = now + interval (in days)
 
-    Returns:
-        Updated UserCardProgress instance (not saved)
-    """
-    if quality < 3:
-        # Failed: reset repetitions, review tomorrow
-        progress.repetitions = 0
-        progress.interval = 1
-    else:
-        # Passed: increase interval
-        if progress.repetitions == 0:
-            progress.interval = 1
-        elif progress.repetitions == 1:
-            progress.interval = 6
-        else:
-            progress.interval = round(progress.interval * progress.ease_factor)
+**Output:** Updated UserCardProgress instance (not saved - caller must save)
 
-        progress.repetitions += 1
-
-    # Adjust ease factor based on performance
-    # EF' = EF + (0.1 - (5 - q) × (0.08 + (5 - q) × 0.02))
-    progress.ease_factor = max(
-        1.3,
-        progress.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-    )
-
-    # Set next review date
-    progress.next_review = timezone.now() + timedelta(days=progress.interval)
-
-    return progress
-```
-
-**Change Summary**: Accept `UserCardProgress` instead of `Card`. Algorithm logic unchanged.
+**Key Difference:** Operates on per-user, per-direction progress instead of shared card state.
 
 ### API Endpoints
 
 #### Study Session Start (Modified)
 
-**Current:**
-```
-POST /api/study/start/{deck_id}/
+**Endpoint:** `POST /api/study/start/{deck_id}/`
 
-Response:
-{
-  "session_id": 123,
-  "cards": [
-    {"id": 1, "front": "hello", "back": "hola"}
-  ]
-}
-```
+**Request Body:**
+- `direction` - Study direction: 'A_TO_B', 'B_TO_A', or 'RANDOM'
 
-**New:**
-```
-POST /api/study/start/{deck_id}/
+**Success Response (200):**
+- `session_id` - Created session ID
+- `deck` - Deck info (id, title, language_a_code, language_b_code)
+- `direction` - Confirmed study direction
+- `cards` - Array of cards formatted for study direction
 
-Request Body:
-{
-  "direction": "A_TO_B"  // or "B_TO_A" or "RANDOM"
-}
+Each card includes:
+- `id` - Card ID
+- `question` - Text to show on card front (language_a or language_b based on direction)
+- `answer` - Text to show on card back (opposite language)
+- `context` - Optional usage example
+- `direction` - Direction for this card
 
-Response:
-{
-  "success": true,
-  "data": {
-    "session_id": 123,
-    "deck": {
-      "id": 5,
-      "title": "Serbian-German Basics",
-      "language_a": "sr",
-      "language_b": "de"
-    },
-    "direction": "A_TO_B",
-    "cards": [
-      {
-        "id": 1,
-        "question": "здраво",        // language_a (based on direction)
-        "answer": "hallo",           // language_b
-        "context": "greeting",
-        "direction": "A_TO_B"
-      },
-      {
-        "id": 2,
-        "question": "добро јутро",
-        "answer": "guten Morgen",
-        "context": "morning greeting",
-        "direction": "A_TO_B"
-      }
-    ]
-  }
-}
-```
+**Error Responses:**
+- **400 INVALID_DIRECTION** - Direction not in ['A_TO_B', 'B_TO_A', 'RANDOM']
+- **403 FORBIDDEN** - User doesn't have access to deck
 
-**Implementation:**
-```python
-@login_required
-def start_study_session(request, deck_id):
-    data = json.loads(request.body)
-    direction = data.get('direction', 'A_TO_B')
-
-    if direction not in ['A_TO_B', 'B_TO_A', 'RANDOM']:
-        return JsonResponse({
-            'success': False,
-            'error': {'code': 'INVALID_DIRECTION', 'message': 'Invalid study direction'}
-        }, status=400)
-
-    deck = get_object_or_404(Deck, id=deck_id)
-
-    # Check permissions (user owns or deck is shared)
-    if not deck.can_view(request.user):
-        return JsonResponse({
-            'success': False,
-            'error': {'code': 'FORBIDDEN', 'message': 'Access denied'}
-        }, status=403)
-
-    # Get due cards for this user in this direction
-    progress_items = UserCardProgress.objects.filter(
-        user=request.user,
-        card__deck=deck,
-        study_direction=direction if direction != 'RANDOM' else None,
-        next_review__lte=timezone.now()
-    ).select_related('card')[:20]  # Limit to 20 cards per session
-
-    # If RANDOM, alternate direction for each card
-    if direction == 'RANDOM':
-        # Implementation detail: mix A_TO_B and B_TO_A
-        pass
-
-    # Format cards based on direction
-    cards = []
-    for progress in progress_items:
-        card = progress.card
-        if direction == 'A_TO_B':
-            question = card.language_a
-            answer = card.language_b
-        else:  # B_TO_A
-            question = card.language_b
-            answer = card.language_a
-
-        cards.append({
-            'id': card.id,
-            'question': question,
-            'answer': answer,
-            'context': card.context,
-            'direction': direction
-        })
-
-    # Create session
-    session = StudySession.objects.create(
-        user=request.user,
-        deck=deck,
-        study_direction=direction if direction != 'RANDOM' else None
-    )
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'session_id': session.id,
-            'deck': {
-                'id': deck.id,
-                'title': deck.title,
-                'language_a': deck.cards.first().language_a_code if deck.cards.exists() else 'en',
-                'language_b': deck.cards.first().language_b_code if deck.cards.exists() else 'en'
-            },
-            'direction': direction,
-            'cards': cards
-        }
-    })
-```
+**Business Logic:**
+1. Validate direction parameter
+2. Check user has deck access (owner or partner)
+3. Query UserCardProgress for due cards:
+   - Filter by user, deck, direction (if not RANDOM)
+   - Filter by next_review <= now
+   - Limit to 20 cards per session
+4. Format cards based on direction (swap question/answer as needed)
+5. Create StudySession record with direction
+6. Return session details and formatted cards
 
 #### Submit Review (Modified)
 
-**Current:**
-```
-POST /api/study/review/
+**Endpoint:** `POST /api/study/review/`
 
-Body:
-{
-  "session_id": 123,
-  "card_id": 1,
-  "quality": 4,
-  "time_taken": 12
-}
-```
+**Request Body:**
+- `session_id` - Study session ID
+- `card_id` - Card being reviewed
+- `quality` - Quality rating 0-5
+- `time_taken` - Seconds spent on card
+- `direction` - Study direction ('A_TO_B' or 'B_TO_A') - NEW field
 
-**New:**
-```
-POST /api/study/review/
+**Success Response (200):**
+- `next_review` - Next review timestamp for this card/direction
+- `interval` - Days until next review
+- `ease_factor` - Updated ease factor
 
-Body:
-{
-  "session_id": 123,
-  "card_id": 1,
-  "quality": 4,
-  "time_taken": 12,
-  "direction": "A_TO_B"  // NEW: Must match session direction
-}
+**Error Response (400 INVALID_QUALITY):** Quality must be 0-5
 
-Response:
-{
-  "success": true,
-  "data": {
-    "next_review": "2025-11-08T10:00:00Z",
-    "interval": 6,
-    "ease_factor": 2.6
-  }
-}
-```
-
-**Implementation:**
-```python
-@login_required
-def submit_review(request):
-    data = json.loads(request.body)
-    card_id = data['card_id']
-    quality = data['quality']
-    direction = data['direction']
-    session_id = data['session_id']
-    time_taken = data['time_taken']
-
-    # Validate quality
-    if not 0 <= quality <= 5:
-        return JsonResponse({
-            'success': False,
-            'error': {'code': 'INVALID_QUALITY', 'message': 'Quality must be 0-5'}
-        }, status=400)
-
-    # Get or create progress
-    progress, created = UserCardProgress.objects.get_or_create(
-        user=request.user,
-        card_id=card_id,
-        study_direction=direction,
-        defaults={
-            'ease_factor': 2.5,
-            'interval': 1,
-            'repetitions': 0,
-            'next_review': timezone.now()
-        }
-    )
-
-    # Apply SM-2 algorithm
-    progress = calculate_next_review(progress, quality)
-    progress.save()
-
-    # Create review record
-    Review.objects.create(
-        card_id=card_id,
-        session_id=session_id,
-        quality=quality,
-        study_direction=direction,
-        time_taken=time_taken
-    )
-
-    # Update session stats
-    session = StudySession.objects.get(id=session_id)
-    session.cards_studied += 1
-    session.save()
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'next_review': progress.next_review.isoformat(),
-            'interval': progress.interval,
-            'ease_factor': round(progress.ease_factor, 2)
-        }
-    })
-```
+**Business Logic:**
+1. Validate quality is 0-5
+2. Get or create UserCardProgress for (user, card, direction)
+   - If creating new: defaults (ease_factor=2.5, interval=1, repetitions=0, next_review=now)
+3. Apply SM-2 algorithm to update progress
+4. Save updated progress
+5. Create Review record with direction for analytics
+6. Update StudySession cards_studied counter
+7. Return updated progress details
 
 #### Card CRUD (Modified)
 
 **Create Card:**
-```
-POST /api/decks/{deck_id}/cards/
 
-Current Body:
-{
-  "front": "hello",
-  "back": "hola"
-}
+Endpoint: `POST /api/decks/{deck_id}/cards/`
 
-New Body:
-{
-  "language_a": "здраво",
-  "language_b": "hallo",
-  "language_a_code": "sr",
-  "language_b_code": "de",
-  "context": "greeting"  // optional
-}
+Request body now requires:
+- `language_a` - First language text (was `front`)
+- `language_b` - Second language text (was `back`)
+- `language_a_code` - ISO 639-1 code (e.g., 'sr', 'de')
+- `language_b_code` - ISO 639-1 code
+- `context` - Optional usage example
 
-Response:
-{
-  "success": true,
-  "data": {
-    "id": 123,
-    "language_a": "здраво",
-    "language_b": "hallo",
-    "language_a_code": "sr",
-    "language_b_code": "de",
-    "context": "greeting",
-    "created_at": "2025-11-02T14:00:00Z"
-  }
-}
-```
+Response includes all card fields plus `created_at` timestamp.
 
 **List Cards:**
-```
-GET /api/decks/{deck_id}/cards/
 
-Response:
-{
-  "success": true,
-  "data": {
-    "cards": [
-      {
-        "id": 1,
-        "language_a": "здраво",
-        "language_b": "hallo",
-        "language_a_code": "sr",
-        "language_b_code": "de",
-        "context": "greeting"
-      }
-    ],
-    "language_a_code": "sr",
-    "language_b_code": "de"
-  }
-}
-```
+Endpoint: `GET /api/decks/{deck_id}/cards/`
+
+Response includes:
+- `cards` - Array of card objects with language fields
+- `language_a_code`, `language_b_code` - Deck-level language codes (from first card)
 
 ### User Interface/Experience
 
@@ -700,194 +283,57 @@ Response:
 
 **New UI Component** (add to `study.html`):
 
-```html
-<!-- Before study session starts -->
-<div id="direction-selector" class="card mb-4">
-  <div class="card-body text-center">
-    <h4 class="mb-3">Choose Study Direction</h4>
-    <p class="text-muted">
-      This deck contains Serbian ↔ German cards
-    </p>
+Before study session starts, display direction selector with three options:
+1. Language A → Language B button (e.g., "🇷🇸 Serbian → 🇩🇪 German")
+2. Language B → Language A button (e.g., "🇩🇪 German → 🇷🇸 Serbian")
+3. Random Direction button (mix both directions)
 
-    <div class="btn-group-vertical w-100" role="group">
-      <button type="button" class="btn btn-outline-primary btn-lg mb-2"
-              onclick="startStudy('A_TO_B')">
-        🇷🇸 Serbian → 🇩🇪 German
-        <small class="d-block text-muted">Learn German vocabulary</small>
-      </button>
+Each button shows language flags/names and descriptive subtitle (e.g., "Learn German vocabulary").
 
-      <button type="button" class="btn btn-outline-primary btn-lg mb-2"
-              onclick="startStudy('B_TO_A')">
-        🇩🇪 German → 🇷🇸 Serbian
-        <small class="d-block text-muted">Learn Serbian vocabulary</small>
-      </button>
+**TypeScript Implementation** (`src/ts/study.ts`):
 
-      <button type="button" class="btn btn-outline-secondary btn-lg"
-              onclick="startStudy('RANDOM')">
-        🔀 Random Direction
-        <small class="d-block text-muted">Mix both directions</small>
-      </button>
-    </div>
-  </div>
-</div>
-```
+Study controller manages:
+- Direction selection and session configuration
+- Hiding direction selector after choice
+- Starting study session with chosen direction
+- Displaying direction indicator during study (e.g., "Serbian → German")
+- Submitting reviews with direction parameter
 
-**TypeScript** (`src/ts/study.ts`):
-
-```typescript
-interface StudySessionConfig {
-    deckId: number;
-    direction: 'A_TO_B' | 'B_TO_A' | 'RANDOM';
-}
-
-class StudyController {
-    private config: StudySessionConfig;
-    private sessionId: number;
-
-    async startStudy(direction: 'A_TO_B' | 'B_TO_A' | 'RANDOM'): Promise<void> {
-        this.config = {
-            deckId: this.deckId,
-            direction: direction
-        };
-
-        // Hide direction selector
-        document.getElementById('direction-selector')!.style.display = 'none';
-
-        // Show loading
-        this.showLoading();
-
-        // Start session
-        const response = await api.startStudySession(this.deckId, direction);
-
-        if (response.success) {
-            this.sessionId = response.data.session_id;
-            this.loadCards(response.data.cards);
-            this.showDirectionIndicator(response.data.deck, direction);
-        }
-    }
-
-    showDirectionIndicator(deck: any, direction: string): void {
-        const indicator = document.getElementById('direction-indicator');
-        const arrow = direction === 'A_TO_B' ? '→' : '←';
-        const langA = this.getLanguageName(deck.language_a);
-        const langB = this.getLanguageName(deck.language_b);
-
-        indicator!.textContent = direction === 'A_TO_B'
-            ? `${langA} → ${langB}`
-            : `${langB} → ${langA}`;
-    }
-
-    async submitRating(quality: number): Promise<void> {
-        const timeSpent = this.calculateTimeSpent();
-
-        await api.submitReview({
-            session_id: this.sessionId,
-            card_id: this.currentCard.id,
-            quality: quality,
-            time_taken: timeSpent,
-            direction: this.config.direction
-        });
-
-        this.nextCard();
-    }
-}
-```
+Key methods:
+- `startStudy(direction)` - Initialize session with chosen direction
+- `showDirectionIndicator()` - Display current study direction
+- `submitRating(quality)` - Include direction in review submission
 
 #### Card Creation Form
 
 **Modified** (`deck_detail.html`):
 
-**Current:**
-```html
-<form id="create-card-form">
-  <div class="mb-3">
-    <label for="card-front" class="form-label">Front (Question)</label>
-    <textarea id="card-front" class="form-control"></textarea>
-  </div>
-  <div class="mb-3">
-    <label for="card-back" class="form-label">Back (Answer)</label>
-    <textarea id="card-back" class="form-control"></textarea>
-  </div>
-  <button type="submit" class="btn btn-primary">Create Card</button>
-</form>
-```
+Form fields changed from:
+- "Front (Question)" → "Language A" with language flag/name
+- "Back (Answer)" → "Language B" with language flag/name
+- Added "Context" field (optional usage example)
 
-**New:**
-```html
-<form id="create-card-form">
-  <div class="mb-3">
-    <label for="card-language-a" class="form-label">
-      🇷🇸 Serbian (Српски)
-    </label>
-    <textarea id="card-language-a" class="form-control"
-              placeholder="здраво" required></textarea>
-  </div>
-
-  <div class="mb-3">
-    <label for="card-language-b" class="form-label">
-      🇩🇪 German (Deutsch)
-    </label>
-    <textarea id="card-language-b" class="form-control"
-              placeholder="hallo" required></textarea>
-  </div>
-
-  <div class="mb-3">
-    <label for="card-context" class="form-label">
-      Context (Optional)
-    </label>
-    <input type="text" id="card-context" class="form-control"
-           placeholder="greeting, informal">
-  </div>
-
-  <button type="submit" class="btn btn-primary">Create Card</button>
-</form>
-```
+Each language field has:
+- Language-specific label (e.g., "🇷🇸 Serbian (Српски)")
+- Placeholder in that language
+- Required validation
 
 **TypeScript** (`src/ts/cards.ts`):
 
-```typescript
-async createCard(): Promise<void> {
-    const languageA = (document.getElementById('card-language-a') as HTMLTextAreaElement).value;
-    const languageB = (document.getElementById('card-language-b') as HTMLTextAreaElement).value;
-    const context = (document.getElementById('card-context') as HTMLInputElement).value;
-
-    const response = await api.createCard(this.deckId, {
-        language_a: languageA,
-        language_b: languageB,
-        language_a_code: 'sr',  // TODO: Get from deck settings
-        language_b_code: 'de',
-        context: context
-    });
-
-    if (response.success) {
-        this.refreshCardList();
-        this.clearForm();
-    }
-}
-```
+Card creation now sends:
+- `language_a`, `language_b` - Card text
+- `language_a_code`, `language_b_code` - ISO language codes
+- `context` - Optional context
 
 #### Card Display in List
 
 **Modified** (deck_detail.html):
 
-```html
-<div class="card mb-2">
-  <div class="card-body">
-    <div class="row">
-      <div class="col-md-5">
-        <strong>🇷🇸</strong> здраво
-      </div>
-      <div class="col-md-2 text-center">
-        ↔
-      </div>
-      <div class="col-md-5">
-        <strong>🇩🇪</strong> hallo
-      </div>
-    </div>
-    <small class="text-muted">Context: greeting</small>
-  </div>
-</div>
-```
+Cards displayed with bidirectional layout:
+- Left column: Language A with flag (e.g., "🇷🇸 здраво")
+- Center: Bidirectional arrow (↔)
+- Right column: Language B with flag (e.g., "🇩🇪 hallo")
+- Below: Context in smaller text if present
 
 ## Alternatives Considered
 
@@ -973,89 +419,49 @@ See **RFC 0009: Data Migration Strategy** for detailed migration plan.
 
 ### Testing Approach
 
-```python
-# Unit tests for UserCardProgress
-def test_user_card_progress_creation():
-    """Can create progress for user + card + direction"""
+**Unit Tests for UserCardProgress:**
+- Can create progress for user + card + direction combination
+- Same user has separate progress for A→B vs B→A directions
+- Different users have independent progress for same card
+- SM-2 algorithm correctly updates UserCardProgress
 
-def test_separate_progress_per_direction():
-    """Same user has different progress for A→B vs B→A"""
+**Integration Tests:**
+- Study session can start with specific direction
+- Cards formatted correctly based on chosen direction (language swap)
+- Submitting review updates only user's progress for that specific direction
+- Multiple users studying same deck maintain independent progress
 
-def test_separate_progress_per_user():
-    """Different users have different progress for same card"""
-
-def test_sm2_algorithm_with_progress():
-    """SM-2 algorithm works with UserCardProgress"""
-
-# Integration tests
-def test_study_session_with_direction():
-    """Can start study session with specific direction"""
-
-def test_cards_formatted_by_direction():
-    """Cards show correct language based on direction"""
-
-def test_review_updates_correct_progress():
-    """Submitting review updates only user's progress for that direction"""
-
-# API tests
-def test_start_session_requires_direction():
-    """POST /api/study/start/ validates direction parameter"""
-
-def test_submit_review_with_direction():
-    """POST /api/study/review/ accepts and stores direction"""
-
-def test_create_card_with_languages():
-    """POST /api/decks/{id}/cards/ accepts language fields"""
-```
+**API Tests:**
+- `POST /api/study/start/` validates direction parameter (rejects invalid values)
+- `POST /api/study/review/` accepts and stores direction
+- `POST /api/decks/{id}/cards/` accepts language fields instead of front/back
+- Direction parameter required in both study start and review submission
 
 ### Performance Considerations
 
-**Database Queries**:
-```python
-# Efficient: Get due cards for user
-UserCardProgress.objects.filter(
-    user=request.user,
-    next_review__lte=timezone.now()
-).select_related('card')  # Join with Card model
+**Database Queries:**
+- Use `select_related('card')` when fetching UserCardProgress to avoid N+1 queries
+- Index on (user, next_review) enables fast "cards due now" queries
+- Use `prefetch_related()` with Prefetch object when listing cards with user progress
 
-# Index on (user, next_review) makes this fast
-```
-
-**N+1 Query Prevention**:
-```python
-# When listing cards with user progress
-cards = Card.objects.filter(deck=deck).prefetch_related(
-    Prefetch(
-        'user_progress',
-        queryset=UserCardProgress.objects.filter(user=request.user)
-    )
-)
-```
-
-**Database Size**:
+**Database Size:**
 - UserCardProgress grows with (users × cards × 2 directions)
 - Example: 2 partners, 1000 cards, both directions = 4000 progress records
 - Not a concern for couples use case (small scale)
+- Consider pagination for large decks (>1000 cards)
 
 ### Security Considerations
 
-**Permission Checks**:
-- Verify user can access deck before starting study
+**Permission Checks:**
+- Verify user can access deck before starting study (use `deck.can_view(user)`)
 - Verify card belongs to deck in review submission
-- Prevent manipulation of UserCardProgress via API (no direct endpoint)
+- Prevent direct manipulation of UserCardProgress via API (no direct endpoint exposed)
 
-**Direction Validation**:
-```python
-VALID_DIRECTIONS = ['A_TO_B', 'B_TO_A', 'RANDOM']
-if direction not in VALID_DIRECTIONS:
-    return error_response('INVALID_DIRECTION')
-```
-
-**Quality Rating Validation**:
-```python
-if not 0 <= quality <= 5:
-    return error_response('INVALID_QUALITY')
-```
+**Input Validation:**
+- Direction parameter must be one of: 'A_TO_B', 'B_TO_A', 'RANDOM'
+- Quality rating must be integer 0-5
+- Validate card_id and session_id exist and belong to user
+- Sanitize language text fields to prevent XSS
 
 ## Timeline
 

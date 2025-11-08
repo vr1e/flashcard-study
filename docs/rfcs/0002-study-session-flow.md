@@ -44,51 +44,32 @@ Build a single-page study interface that:
 
 #### Frontend Architecture (TypeScript)
 
-```typescript
-class StudySession {
-	private deckId: number;
-	private cards: Card[];
-	private currentIndex: number = 0;
-	private sessionId: number;
-	private startTime: number;
-	private flipped: boolean = false;
+The study session is managed by a TypeScript class with the following responsibilities:
 
-	async start(): Promise<void> {
-		// Fetch due cards and create session
-	}
+- **Session Management**: Fetch due cards and create session via API
+- **Card Display**: Show current card front with flip animation
+- **Progress Tracking**: Track current card index and session timing
+- **Rating Submission**: Submit quality ratings and move to next card
+- **Session Completion**: Display summary statistics at end
 
-	showCard(): void {
-		// Display current card front
-	}
-
-	flipCard(): void {
-		// Animate flip to reveal back
-	}
-
-	async submitRating(quality: number): Promise<void> {
-		// Submit review and move to next card
-	}
-
-	nextCard(): void {
-		// Progress to next card or end session
-	}
-
-	endSession(): void {
-		// Show summary and statistics
-	}
-}
-```
+Key methods:
+- `start()`: Fetch due cards and initialize session
+- `showCard()`: Display current card front
+- `flipCard()`: Animate flip to reveal back
+- `submitRating(quality)`: Submit review and advance to next card
+- `nextCard()`: Progress to next card or end session
+- `endSession()`: Show summary and statistics
 
 #### API Endpoints
 
-```
-GET  /api/decks/{deck_id}/study/
-     → Returns: { cards: Card[], session_id: number }
+**Start Study Session:**
+- `GET /api/decks/{deck_id}/study/`
+- Returns: cards due for review and session ID
 
-POST /api/cards/{card_id}/review/
-     Body: { session_id, quality, time_taken }
-     → Returns: { success: boolean, next_review: datetime }
-```
+**Submit Card Review:**
+- `POST /api/cards/{card_id}/review/`
+- Body: session_id, quality rating (0-5), time_taken (seconds)
+- Returns: success status and next review date
 
 #### UI States
 
@@ -98,130 +79,6 @@ POST /api/cards/{card_id}/review/
 4. **Transition**: Animating to next card
 5. **Complete**: Session summary with stats
 
-### Code Examples
-
-#### TypeScript Session Manager
-
-```typescript
-class StudySession {
-	constructor(deckId: number) {
-		this.deckId = deckId;
-		this.cards = [];
-		this.currentIndex = 0;
-	}
-
-	async start(): Promise<void> {
-		const response = await fetch(`/api/decks/${this.deckId}/study/`, {
-			method: "POST",
-		});
-		const data = await response.json();
-
-		this.cards = data.cards;
-		this.sessionId = data.session_id;
-
-		if (this.cards.length === 0) {
-			this.showNoCardsMessage();
-			return;
-		}
-
-		this.showCard();
-	}
-
-	showCard(): void {
-		const card = this.cards[this.currentIndex];
-		this.flipped = false;
-		this.startTime = Date.now();
-
-		// Update UI
-		document.getElementById("card-front").textContent = card.front;
-		document.getElementById("card-back").textContent = card.back;
-		document.getElementById("progress").textContent = `${
-			this.currentIndex + 1
-		} / ${this.cards.length}`;
-
-		// Show front, hide back
-		this.showFront();
-	}
-
-	flipCard(): void {
-		if (this.flipped) return;
-
-		this.flipped = true;
-		// CSS animation to flip card
-		document.querySelector(".card-container").classList.add("flipped");
-	}
-
-	async submitRating(quality: number): Promise<void> {
-		const card = this.cards[this.currentIndex];
-		const timeSpent = Math.floor((Date.now() - this.startTime) / 1000);
-
-		await fetch(`/api/cards/${card.id}/review/`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				session_id: this.sessionId,
-				quality: quality,
-				time_taken: timeSpent,
-			}),
-		});
-
-		this.nextCard();
-	}
-
-	nextCard(): void {
-		this.currentIndex++;
-
-		if (this.currentIndex < this.cards.length) {
-			this.showCard();
-		} else {
-			this.endSession();
-		}
-	}
-
-	endSession(): void {
-		// Show completion modal with statistics
-		const stats = {
-			cards_studied: this.cards.length,
-			time_elapsed: Math.floor((Date.now() - this.sessionStart) / 1000),
-		};
-
-		this.showCompletionModal(stats);
-	}
-}
-```
-
-#### HTML Structure
-
-```html
-<div class="study-container">
-	<div class="progress-bar">
-		<span id="progress">0 / 0</span>
-	</div>
-
-	<div class="card-container">
-		<div class="card">
-			<div class="card-front">
-				<h2 id="card-front"></h2>
-				<button onclick="session.flipCard()">Show Answer</button>
-			</div>
-
-			<div class="card-back">
-				<h3>Answer:</h3>
-				<p id="card-back"></p>
-
-				<div class="rating-buttons">
-					<button onclick="session.submitRating(0)">0 - Forgot</button>
-					<button onclick="session.submitRating(1)">1 - Hard</button>
-					<button onclick="session.submitRating(2)">2 - Medium</button>
-					<button onclick="session.submitRating(3)">3 - Good</button>
-					<button onclick="session.submitRating(4)">4 - Easy</button>
-					<button onclick="session.submitRating(5)">5 - Perfect</button>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-```
 
 ### User Interface/Experience
 
@@ -290,16 +147,12 @@ class StudySession {
 
 ### Testing Approach
 
-```typescript
-// Unit tests
-describe("StudySession", () => {
-	test("starts session and fetches cards", async () => {});
-	test("flips card on button click", () => {});
-	test("submits rating and advances", async () => {});
-	test("ends session after last card", () => {});
-	test("handles zero cards gracefully", () => {});
-});
-```
+**Unit Tests:**
+- Start session and fetch cards
+- Flip card on button click
+- Submit rating and advance to next card
+- End session after last card
+- Handle zero cards gracefully (no cards due)
 
 **Manual Testing Scenarios**:
 
@@ -360,73 +213,31 @@ The following features were implemented as additional enhancements beyond the or
 #### 2. Real-Time Timer Display
 **Added Feature**: Live timer showing elapsed time during study session
 
-- Timer displays at top of study interface: `<i class="bi bi-clock"></i> 0:00`
-- Updates every second using `setInterval()`
+- Timer displays at top of study interface with clock icon
+- Updates every second using interval timer
 - Format: MM:SS (e.g., "0:45" for 45 seconds, "12:30" for 12 minutes 30 seconds)
 - Timer stops when session ends
 - Final time displayed in completion screen
 
-Implementation:
-```typescript
-private timerInterval: number | null = null;
-private sessionStartTime: number;
-
-private startTimer(): void {
-    this.updateTimerDisplay();
-    this.timerInterval = window.setInterval(() => {
-        this.updateTimerDisplay();
-    }, 1000);
-}
-
-private stopTimer(): void {
-    if (this.timerInterval !== null) {
-        clearInterval(this.timerInterval);
-        this.timerInterval = null;
-    }
-}
-
-private updateTimerDisplay(): void {
-    const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
-    const timerDisplay = document.getElementById("timer-display");
-    if (timerDisplay) {
-        timerDisplay.innerHTML = `<i class="bi bi-clock"></i> ${this.formatTime(elapsed)}`;
-    }
-}
-```
+Implementation uses:
+- Session start time tracking
+- Interval-based updates every 1000ms
+- Elapsed time calculation and formatting
 
 #### 3. Average Quality Calculation
 **Added Feature**: Calculate and display average quality rating at session end
 
-- Tracks all quality ratings in array: `private qualityRatings: number[] = []`
+- Tracks all quality ratings during session
 - Calculates average on session completion
 - Displays with 1 decimal place (e.g., "3.8")
 - Shows "-" if no cards were rated (edge case: user quits without rating)
 
 Implementation:
-```typescript
-private qualityRatings: number[] = [];
+- Accumulate ratings as user submits them
+- Calculate mean on session end
+- Handle edge case of empty ratings array
 
-async submitRating(quality: number): Promise<void> {
-    // ... API call ...
-    this.qualityRatings.push(quality);
-    this.nextCard();
-}
-
-endSession(): void {
-    this.stopTimer();
-    const avgQuality =
-        this.qualityRatings.length > 0
-            ? (
-                  this.qualityRatings.reduce((a, b) => a + b, 0) /
-                  this.qualityRatings.length
-              ).toFixed(1)
-            : "-";
-
-    document.getElementById("summary-quality")!.textContent = avgQuality;
-}
-```
-
-Completion screen now shows three metrics:
+Completion screen shows three metrics:
 - **Cards Studied**: Total count
 - **Time Spent**: Elapsed time in MM:SS
 - **Average Quality**: Mean of all ratings (1 decimal)

@@ -57,199 +57,67 @@ A simple partnership system that:
 
 ##### Partnership Model
 
-```python
-class Partnership(models.Model):
-    """Links two users together for shared deck access."""
+Links two users together for shared deck access.
 
-    user_a = ForeignKey(
-        User,
-        on_delete=CASCADE,
-        related_name='partnerships_as_a',
-        help_text="First partner in the relationship"
-    )
-    user_b = ForeignKey(
-        User,
-        on_delete=CASCADE,
-        related_name='partnerships_as_b',
-        help_text="Second partner in the relationship"
-    )
-    created_at = DateTimeField(auto_now_add=True)
-    is_active = BooleanField(
-        default=True,
-        help_text="False when partnership is dissolved (soft delete)"
-    )
+**Fields:**
+- `user_a` - First partner (ForeignKey to User, CASCADE delete)
+- `user_b` - Second partner (ForeignKey to User, CASCADE delete)
+- `created_at` - Partnership creation timestamp
+- `is_active` - Boolean flag (False when dissolved, enables soft delete)
+- `decks` - Many-to-many relationship to shared Deck objects
 
-    # Shared decks (many-to-many relationship)
-    decks = ManyToManyField(
-        'Deck',
-        related_name='partnerships',
-        blank=True,
-        help_text="Decks shared between partners"
-    )
+**Constraints:**
+- Unique together on (user_a, user_b) - prevents duplicate partnerships
+- Database indexes on (user_a, is_active) and (user_b, is_active) for fast lookups
 
-    class Meta:
-        unique_together = [['user_a', 'user_b']]
-        indexes = [
-            models.Index(fields=['user_a', 'is_active']),
-            models.Index(fields=['user_b', 'is_active']),
-        ]
+**Helper Methods:**
+- `get_partner(user)` - Returns the other user in the partnership
+- `has_member(user)` - Checks if user is in this partnership
 
-    def get_partner(self, user):
-        """Get the other user in the partnership."""
-        if user == self.user_a:
-            return self.user_b
-        elif user == self.user_b:
-            return self.user_a
-        else:
-            raise ValueError(f"User {user} is not in this partnership")
-
-    def has_member(self, user):
-        """Check if user is in this partnership."""
-        return user in [self.user_a, self.user_b]
-
-    def clean(self):
-        """Validate partnership constraints."""
-        from django.core.exceptions import ValidationError
-        from django.db.models import Q
-
-        # Cannot partner with yourself
-        if self.user_a == self.user_b:
-            raise ValidationError("Cannot create partnership with yourself")
-
-        # Only one active partnership per user
-        existing = Partnership.objects.filter(
-            Q(user_a=self.user_a) | Q(user_b=self.user_a) |
-            Q(user_a=self.user_b) | Q(user_b=self.user_b),
-            is_active=True
-        ).exclude(pk=self.pk)
-
-        if existing.exists():
-            raise ValidationError("User already has an active partnership")
-```
+**Validation Rules:**
+- Users cannot partner with themselves
+- Only one active partnership allowed per user
+- Validation enforced at model level via `clean()` method
 
 ##### PartnershipInvitation Model
 
-```python
-class PartnershipInvitation(models.Model):
-    """Invitation code system for creating partnerships."""
+Invitation code system for creating partnerships.
 
-    inviter = ForeignKey(
-        User,
-        on_delete=CASCADE,
-        related_name='sent_invitations',
-        help_text="User who created the invitation"
-    )
-    code = CharField(
-        max_length=10,
-        unique=True,
-        db_index=True,
-        help_text="Unique 6-character invitation code"
-    )
-    created_at = DateTimeField(auto_now_add=True)
-    expires_at = DateTimeField(help_text="Invitation expires after 7 days")
-    accepted_by = ForeignKey(
-        User,
-        null=True,
-        blank=True,
-        on_delete=SET_NULL,
-        related_name='accepted_invitations',
-        help_text="User who accepted the invitation"
-    )
-    accepted_at = DateTimeField(null=True, blank=True)
+**Fields:**
+- `inviter` - User who created the invitation (ForeignKey to User, CASCADE delete)
+- `code` - Unique 6-character alphanumeric code (CharField, unique, indexed)
+- `created_at` - Invitation creation timestamp
+- `expires_at` - Expiration timestamp (7 days from creation)
+- `accepted_by` - User who accepted (ForeignKey to User, SET_NULL, nullable)
+- `accepted_at` - Acceptance timestamp (nullable)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['code']),
-            models.Index(fields=['inviter', 'expires_at']),
-        ]
+**Indexes:**
+- On `code` field for fast lookup
+- On (inviter, expires_at) for cleanup queries
 
-    @staticmethod
-    def generate_code():
-        """Generate unique 6-character alphanumeric code."""
-        import random
-        import string
-        while True:
-            code = ''.join(random.choices(
-                string.ascii_uppercase + string.digits,
-                k=6
-            ))
-            if not PartnershipInvitation.objects.filter(code=code).exists():
-                return code
-
-    def is_valid(self):
-        """Check if invitation is still valid."""
-        from django.utils import timezone
-        return (
-            self.accepted_by is None and
-            self.expires_at > timezone.now()
-        )
-
-    def save(self, *args, **kwargs):
-        """Auto-generate code and expiration if not set."""
-        from django.utils import timezone
-        from datetime import timedelta
-
-        if not self.code:
-            self.code = self.generate_code()
-        if not self.expires_at:
-            self.expires_at = timezone.now() + timedelta(days=7)
-        super().save(*args, **kwargs)
-```
+**Helper Methods:**
+- `generate_code()` - Static method to generate unique 6-character code using uppercase letters and digits
+- `is_valid()` - Checks if invitation is not yet accepted and not expired
+- Auto-generation logic in `save()` method creates code and sets expiration if not provided
 
 ##### Deck Model Changes
 
-**Current:**
-```python
-class Deck(models.Model):
-    user = ForeignKey(User, on_delete=CASCADE)  # Single owner
-    title = CharField(max_length=200)
-    description = TextField(blank=True)
-```
+**Change Summary:** Deck ownership model updated to support both personal and shared decks.
 
-**Modified:**
-```python
-class Deck(models.Model):
-    """
-    Flashcard deck - can be personal or shared.
+**New Fields:**
+- `created_by` - User who created the deck (ForeignKey, SET_NULL to preserve deck if user deletes account)
+- `created_at` - Deck creation timestamp
+- `updated_at` - Last modification timestamp
 
-    Personal decks: created_by is set, no partnerships
-    Shared decks: created_by is set, linked to Partnership via partnerships M2M
-    """
-    title = CharField(max_length=200)
-    description = TextField(blank=True)
-    created_by = ForeignKey(
-        User,
-        on_delete=SET_NULL,  # Keep deck if creator deletes account
-        null=True,
-        related_name='created_decks',
-        help_text="User who created this deck"
-    )
-    created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
+**Relationships:**
+- Reverse relationship `partnerships` - Many-to-many from Partnership model
+- Personal decks have no partnership associations
+- Shared decks are linked to one active Partnership
 
-    # Reverse relationship: partnerships (ManyToManyField from Partnership)
-
-    def is_shared(self):
-        """Check if deck is shared via a partnership."""
-        return self.partnerships.filter(is_active=True).exists()
-
-    def can_edit(self, user):
-        """Check if user has edit permissions."""
-        # Creator can always edit
-        if self.created_by == user:
-            return True
-
-        # Partner can edit if deck is shared
-        partnership = self.partnerships.filter(is_active=True).first()
-        if partnership and partnership.has_member(user):
-            return True
-
-        return False
-
-    def can_view(self, user):
-        """Check if user has view permissions."""
-        return self.can_edit(user)  # Same permissions for now
-```
+**Permission Methods:**
+- `is_shared()` - Returns true if deck is linked to an active partnership
+- `can_edit(user)` - Returns true if user is creator OR is partner in active partnership
+- `can_view(user)` - Currently same as `can_edit()` (view and edit permissions are identical)
 
 ### API Endpoints
 
@@ -257,428 +125,144 @@ class Deck(models.Model):
 
 ##### Create Invitation
 
-```
-POST /api/partnership/invite/
+**Endpoint:** `POST /api/partnership/invite/`
 
-Request Body: (none)
+**Request:** No body required
 
-Response (200):
-{
-  "success": true,
-  "data": {
-    "code": "ABC123",
-    "expires_at": "2025-11-09T12:00:00Z",
-    "created_at": "2025-11-02T12:00:00Z"
-  }
-}
+**Success Response (200):**
+- `code` - 6-character invitation code
+- `expires_at` - Expiration timestamp (7 days from now)
+- `created_at` - Creation timestamp
 
-Error (400 - Already has partnership):
-{
-  "success": false,
-  "error": {
-    "code": "ALREADY_PARTNERED",
-    "message": "You already have an active partnership"
-  }
-}
-```
+**Error Response (400 - Already Partnered):**
+- Error code: `ALREADY_PARTNERED`
+- Message: "You already have an active partnership"
 
-**Implementation:**
-```python
-@login_required
-def create_invitation(request):
-    # Check if user already has active partnership
-    existing = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).exists()
-
-    if existing:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'ALREADY_PARTNERED',
-                'message': 'You already have an active partnership'
-            }
-        }, status=400)
-
-    # Create invitation
-    invitation = PartnershipInvitation.objects.create(
-        inviter=request.user
-    )
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'code': invitation.code,
-            'expires_at': invitation.expires_at.isoformat(),
-            'created_at': invitation.created_at.isoformat()
-        }
-    })
-```
+**Business Logic:**
+1. Check if user already has an active partnership
+2. If yes, return error (one partnership per user limit)
+3. If no, create new PartnershipInvitation with auto-generated code
+4. Return invitation details
 
 ##### Accept Invitation
 
-```
-POST /api/partnership/accept/
+**Endpoint:** `POST /api/partnership/accept/`
 
-Request Body:
-{
-  "code": "ABC123"
-}
+**Request Body:**
+- `code` - 6-character invitation code (case-insensitive)
 
-Response (200):
-{
-  "success": true,
-  "data": {
-    "partnership_id": 1,
-    "partner": {
-      "id": 2,
-      "username": "maria_doe",
-      "email": "maria@example.com"
-    },
-    "created_at": "2025-11-02T12:05:00Z"
-  }
-}
+**Success Response (200):**
+- `partnership_id` - ID of created partnership
+- `partner` - Partner user details (id, username, email)
+- `created_at` - Partnership creation timestamp
 
-Error (404 - Invalid code):
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_CODE",
-    "message": "Invitation code not found or expired"
-  }
-}
+**Error Responses:**
+- **404 INVALID_CODE** - Invitation code not found or expired
+- **400 EXPIRED** - Invitation has expired (>7 days old)
+- **400 SELF_INVITATION** - User trying to accept their own invitation
+- **400 ALREADY_PARTNERED** - User already has an active partnership
 
-Error (400 - Self invitation):
-{
-  "success": false,
-  "error": {
-    "code": "SELF_INVITATION",
-    "message": "Cannot accept your own invitation"
-  }
-}
-```
-
-**Implementation:**
-```python
-@login_required
-def accept_invitation(request):
-    data = json.loads(request.body)
-    code = data.get('code', '').upper()
-
-    try:
-        invitation = PartnershipInvitation.objects.get(code=code)
-    except PartnershipInvitation.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'INVALID_CODE',
-                'message': 'Invitation code not found or expired'
-            }
-        }, status=404)
-
-    # Validate invitation
-    if not invitation.is_valid():
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'EXPIRED',
-                'message': 'This invitation has expired'
-            }
-        }, status=400)
-
-    if invitation.inviter == request.user:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'SELF_INVITATION',
-                'message': 'Cannot accept your own invitation'
-            }
-        }, status=400)
-
-    # Check if acceptor already has partnership
-    existing = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).exists()
-
-    if existing:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'ALREADY_PARTNERED',
-                'message': 'You already have an active partnership'
-            }
-        }, status=400)
-
-    # Create partnership
-    partnership = Partnership.objects.create(
-        user_a=invitation.inviter,
-        user_b=request.user
-    )
-
-    # Mark invitation as accepted
-    invitation.accepted_by = request.user
-    invitation.accepted_at = timezone.now()
-    invitation.save()
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'partnership_id': partnership.id,
-            'partner': {
-                'id': invitation.inviter.id,
-                'username': invitation.inviter.username,
-                'email': invitation.inviter.email
-            },
-            'created_at': partnership.created_at.isoformat()
-        }
-    })
-```
+**Business Logic:**
+1. Lookup invitation by code (convert to uppercase)
+2. Validate invitation is not expired and not already accepted
+3. Check inviter is not the same as acceptor (prevent self-partnership)
+4. Check acceptor doesn't already have an active partnership
+5. Create Partnership record linking both users
+6. Mark invitation as accepted with timestamp
+7. Return partnership details
 
 ##### Get Partnership Info
 
-```
-GET /api/partnership/
+**Endpoint:** `GET /api/partnership/`
 
-Response (200 - has partnership):
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "partner": {
-      "id": 2,
-      "username": "maria_doe",
-      "email": "maria@example.com"
-    },
-    "created_at": "2025-11-02T12:05:00Z",
-    "shared_decks_count": 3
-  }
-}
+**Success Response (200 - has partnership):**
+- `id` - Partnership ID
+- `partner` - Partner user details (id, username, email)
+- `created_at` - Partnership creation timestamp
+- `shared_decks_count` - Number of shared decks
 
-Response (200 - no partnership):
-{
-  "success": true,
-  "data": null
-}
-```
+**Success Response (200 - no partnership):**
+- `data: null`
+
+**Business Logic:**
+- Query for active partnership where user is either user_a or user_b
+- If found, return partnership details with partner info
+- If not found, return null
 
 ##### Dissolve Partnership
 
-```
-DELETE /api/partnership/
+**Endpoint:** `DELETE /api/partnership/`
 
-Response (200):
-{
-  "success": true,
-  "message": "Partnership dissolved",
-  "decks_affected": 3
-}
+**Success Response (200):**
+- `message` - Confirmation message
+- `decks_affected` - Number of decks that were shared
 
-Note: Sets is_active=False instead of deleting (audit trail)
-```
+**Error Response (404 - No Partnership):**
+- Error code: `NO_PARTNERSHIP`
+- Message: "No active partnership found"
 
-**Implementation:**
-```python
-@login_required
-def dissolve_partnership(request):
-    partnership = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).first()
+**Business Logic:**
+1. Find active partnership for current user
+2. If not found, return 404 error
+3. Count number of shared decks (for reporting)
+4. Set `is_active = False` (soft delete for audit trail)
+5. Clear deck associations (decks remain, just no longer shared)
+6. Return success with count of affected decks
 
-    if not partnership:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'NO_PARTNERSHIP',
-                'message': 'No active partnership found'
-            }
-        }, status=404)
-
-    # Count affected decks
-    decks_count = partnership.decks.count()
-
-    # Soft delete partnership
-    partnership.is_active = False
-    partnership.save()
-
-    # Clear deck associations (decks remain, just not shared)
-    partnership.decks.clear()
-
-    return JsonResponse({
-        'success': True,
-        'message': 'Partnership dissolved',
-        'decks_affected': decks_count
-    })
-```
+Note: Uses soft delete pattern - partnership record remains in database with `is_active=False`
 
 #### Deck Management Changes
 
 ##### Create Deck (Modified)
 
-```
-POST /api/decks/create/
+**Endpoint:** `POST /api/decks/create/`
 
-Request Body:
-{
-  "title": "Serbian-German Basics",
-  "description": "Common phrases and vocabulary",
-  "shared": true  // NEW: Link to active partnership
-}
+**Request Body:**
+- `title` - Deck title (required)
+- `description` - Deck description (optional)
+- `shared` - Boolean flag to create as shared deck (NEW field)
 
-Response (200):
-{
-  "success": true,
-  "data": {
-    "id": 5,
-    "title": "Serbian-German Basics",
-    "description": "Common phrases and vocabulary",
-    "is_shared": true,
-    "created_by": {
-      "id": 1,
-      "username": "john_doe"
-    },
-    "shared_with": {
-      "id": 2,
-      "username": "maria_doe"
-    },
-    "created_at": "2025-11-02T14:00:00Z"
-  }
-}
+**Success Response (200):**
+- `id`, `title`, `description` - Deck details
+- `is_shared` - Boolean indicating if deck is shared
+- `created_by` - Creator user details (id, username)
+- `shared_with` - Partner user details (id, username) if shared, null otherwise
+- `created_at` - Creation timestamp
 
-Error (400 - No partnership):
-{
-  "success": false,
-  "error": {
-    "code": "NO_PARTNERSHIP",
-    "message": "Cannot create shared deck without active partnership"
-  }
-}
-```
+**Error Response (400 - No Partnership):**
+- Error code: `NO_PARTNERSHIP`
+- Message: "Cannot create shared deck without active partnership"
 
-**Implementation:**
-```python
-@login_required
-def create_deck(request):
-    data = json.loads(request.body)
-    is_shared = data.get('shared', False)
-
-    # Create deck
-    deck = Deck.objects.create(
-        title=data['title'],
-        description=data.get('description', ''),
-        created_by=request.user
-    )
-
-    # Link to partnership if shared
-    partner = None
-    if is_shared:
-        partnership = Partnership.objects.filter(
-            Q(user_a=request.user) | Q(user_b=request.user),
-            is_active=True
-        ).first()
-
-        if not partnership:
-            deck.delete()  # Rollback
-            return JsonResponse({
-                'success': False,
-                'error': {
-                    'code': 'NO_PARTNERSHIP',
-                    'message': 'Cannot create shared deck without active partnership'
-                }
-            }, status=400)
-
-        partnership.decks.add(deck)
-        partner = partnership.get_partner(request.user)
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'id': deck.id,
-            'title': deck.title,
-            'description': deck.description,
-            'is_shared': is_shared,
-            'created_by': {
-                'id': request.user.id,
-                'username': request.user.username
-            },
-            'shared_with': {
-                'id': partner.id,
-                'username': partner.username
-            } if partner else None,
-            'created_at': deck.created_at.isoformat()
-        }
-    })
-```
+**Business Logic:**
+1. Create Deck with provided title and description
+2. If `shared: true`:
+   - Find user's active partnership
+   - If no partnership exists, delete deck and return error
+   - If partnership exists, link deck to partnership via M2M relationship
+3. Return deck details including sharing status
 
 ##### List Decks (Modified)
 
-```
-GET /api/decks/
+**Endpoint:** `GET /api/decks/`
 
-Response (200):
-{
-  "success": true,
-  "data": {
-    "personal": [
-      {
-        "id": 1,
-        "title": "My Private Deck",
-        "description": "Personal notes",
-        "total_cards": 25,
-        "cards_due": 5,
-        "created_at": "2025-10-15T10:00:00Z"
-      }
-    ],
-    "shared": [
-      {
-        "id": 2,
-        "title": "Serbian-German",
-        "description": "Learning together",
-        "total_cards": 50,
-        "cards_due": 12,
-        "created_by": {
-          "id": 1,
-          "username": "john_doe"
-        },
-        "shared_with": "maria_doe",
-        "created_at": "2025-11-01T14:00:00Z"
-      }
-    ]
-  }
-}
-```
+**Success Response (200):**
+Returns two arrays:
+- `personal` - Decks created by user with no partnership association
+- `shared` - Decks linked to user's active partnership
 
-**Implementation:**
-```python
-@login_required
-def list_decks(request):
-    # Get user's partnership
-    partnership = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).prefetch_related('decks').first()
+Each deck includes:
+- `id`, `title`, `description` - Basic deck info
+- `total_cards` - Total card count
+- `cards_due` - Number of cards due for review
+- `created_at` - Creation timestamp
+- `created_by` - Creator details (for shared decks)
+- `shared_with` - Partner username (for shared decks)
 
-    # Personal decks (created by user, not shared)
-    personal = Deck.objects.filter(
-        created_by=request.user,
-        partnerships__isnull=True
-    )
-
-    # Shared decks (via partnership)
-    shared = partnership.decks.all() if partnership else Deck.objects.none()
-
-    partner = partnership.get_partner(request.user) if partnership else None
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'personal': [serialize_deck(d, include_stats=True) for d in personal],
-            'shared': [serialize_deck(d, include_stats=True, partner=partner) for d in shared]
-        }
-    })
-```
+**Business Logic:**
+1. Find user's active partnership (if exists)
+2. Query personal decks: created by user AND not in any partnership
+3. Query shared decks: all decks in active partnership
+4. Return both lists with deck statistics
 
 ### User Interface/Experience
 
@@ -686,88 +270,50 @@ def list_decks(request):
 
 **New Template**: `templates/partnership.html`
 
-**Layout:**
-```
-┌─────────────────────────────────────┐
-│  Partnership Status                 │
-├─────────────────────────────────────┤
-│  ✓ Partnered with: maria_doe        │
-│  Since: Nov 2, 2025                 │
-│  Shared Decks: 3                    │
-│                                     │
-│  [Manage Partnership] [Dissolve]    │
-└─────────────────────────────────────┘
+**Layout States:**
 
-         OR (if no partnership)
+**1. With Active Partnership:**
+- Display partner username
+- Show partnership creation date
+- Show count of shared decks
+- Provide "Dissolve Partnership" button
 
-┌─────────────────────────────────────┐
-│  Create Partnership                 │
-├─────────────────────────────────────┤
-│  Invite a partner to share decks    │
-│                                     │
-│  [Generate Invitation Code]         │
-│                                     │
-│  ─── OR ───                         │
-│                                     │
-│  Have a code?                       │
-│  [____________________] [Accept]    │
-└─────────────────────────────────────┘
-```
+**2. No Partnership:**
+- "Generate Invitation Code" button to create invitation
+- Input field + "Accept" button to accept existing code
 
-**After generating invitation:**
-```
-┌─────────────────────────────────────┐
-│  Your Invitation Code               │
-├─────────────────────────────────────┤
-│                                     │
-│      A B C 1 2 3                    │
-│                                     │
-│  Share this code with your partner  │
-│  Expires: Nov 9, 2025 12:00 PM      │
-│                                     │
-│  [Copy Code] [Cancel Invitation]    │
-└─────────────────────────────────────┘
-```
+**3. After Generating Invitation:**
+- Display 6-character code prominently
+- Show expiration date (7 days from creation)
+- "Copy Code" button for easy sharing
+- "Cancel Invitation" option
 
 #### Deck Dashboard Changes
 
 **Modified**: `templates/index.html`
 
-**Layout:**
-```
-┌─────────────────────────────────────┐
-│  My Learning Dashboard              │
-├─────────────────────────────────────┤
-│  Partnership: maria_doe ●           │
-│  [Manage]                           │
-└─────────────────────────────────────┘
+**Layout Changes:**
 
-┌─────────────────────────────────────┐
-│  Shared Decks (3)                   │
-│  [+ New Shared Deck]                │
-├─────────────────────────────────────┤
-│  📚 Serbian-German Basics           │
-│      50 cards • 12 due              │
-│      Created by: maria_doe          │
-│                                     │
-│  📚 Advanced Vocabulary             │
-│      30 cards • 5 due               │
-│      Created by: you                │
-└─────────────────────────────────────┘
+**Partnership Status Banner:**
+- Display partner username with active indicator
+- Link to partnership management page
 
-┌─────────────────────────────────────┐
-│  My Personal Decks (1)              │
-│  [+ New Personal Deck]              │
-├─────────────────────────────────────┤
-│  📚 Private Notes                   │
-│      25 cards • 3 due               │
-└─────────────────────────────────────┘
-```
+**Two Deck Sections:**
 
-**Visual Indicators:**
-- Shared decks: Show partner badge/icon
-- Personal decks: No special indicator
-- Creator attribution: "Created by: [username]"
+1. **Shared Decks Section:**
+   - Heading with count "(3)"
+   - "New Shared Deck" button
+   - Each deck shows:
+     - Title
+     - Card count and cards due
+     - Creator attribution ("Created by: [username]")
+   - Visual indicator (partner badge/icon)
+
+2. **Personal Decks Section:**
+   - Heading with count
+   - "New Personal Deck" button
+   - Each deck shows title, card count, and cards due
+   - No special visual indicator
 
 ## Alternatives Considered
 
@@ -876,32 +422,20 @@ class Migration(migrations.Migration):
 
 ### Testing Approach
 
-```python
-# Unit tests
-def test_partnership_creation():
-    """Create partnership links two users"""
+**Unit Tests:**
+- Partnership creation links two users correctly
+- Invitation codes are unique and valid
+- Expired invitations cannot be accepted
+- Both partners can edit shared decks
+- Only creator can access personal decks
+- Dissolving partnership removes deck access
+- User cannot accept their own invitation
+- User can only have one active partnership
 
-def test_invitation_code_generation():
-    """Generated codes are unique and valid"""
-
-def test_invitation_expiration():
-    """Expired invitations cannot be accepted"""
-
-def test_shared_deck_permissions():
-    """Both partners can edit shared decks"""
-
-def test_personal_deck_permissions():
-    """Only creator can access personal decks"""
-
-def test_partnership_dissolution():
-    """Dissolving partnership removes deck access"""
-
-def test_cannot_partner_with_self():
-    """User cannot accept their own invitation"""
-
-def test_one_partnership_per_user():
-    """User can only have one active partnership"""
-```
+**Integration Tests:**
+- End-to-end partnership creation flow (invite → accept → share deck)
+- Deck access permissions after partnership dissolution
+- Multi-user scenarios
 
 ### Performance Considerations
 
@@ -912,46 +446,29 @@ def test_one_partnership_per_user():
 
 ### Security Considerations
 
-**Permission Checks**:
-```python
-def require_deck_access(view_func):
-    """Decorator to verify user can access deck."""
-    def wrapper(request, deck_id):
-        deck = get_object_or_404(Deck, id=deck_id)
-        if not deck.can_view(request.user):
-            return JsonResponse({
-                'success': False,
-                'error': {
-                    'code': 'FORBIDDEN',
-                    'message': 'You do not have access to this deck'
-                }
-            }, status=403)
-        return view_func(request, deck_id, deck)
-    return wrapper
-```
+**Permission Checks:**
+- View decorator pattern to verify user can access deck before operations
+- Return 403 Forbidden if user lacks access
+- Check both creator and partnership membership
 
-**Invitation Code Security**:
-- Use random alphanumeric codes (36^6 = 2.1 billion combinations)
-- Expire after 7 days
-- One-time use (marked as accepted)
-- Rate limit invitation creation (prevent spam)
+**Invitation Code Security:**
+- Random alphanumeric codes (36^6 = 2.1 billion combinations)
+- 7-day expiration
+- One-time use (marked as accepted after use)
+- Consider rate limiting invitation creation to prevent spam
 
-**Partnership Constraints**:
-- Validate users cannot partner with themselves
-- Validate only one active partnership per user
-- Soft delete partnerships (audit trail)
+**Partnership Constraints:**
+- Validate users cannot partner with themselves (model-level validation)
+- Validate only one active partnership per user (model-level validation)
+- Soft delete partnerships for audit trail (set `is_active=False`)
 
 ### Database Indexes
 
-```python
-# Add to models
-class Meta:
-    indexes = [
-        models.Index(fields=['user_a', 'is_active']),
-        models.Index(fields=['user_b', 'is_active']),
-        models.Index(fields=['code']),  # PartnershipInvitation
-    ]
-```
+Required indexes for performance:
+- `(user_a, is_active)` on Partnership model
+- `(user_b, is_active)` on Partnership model
+- `code` on PartnershipInvitation model
+- `(inviter, expires_at)` on PartnershipInvitation model
 
 ## Timeline
 

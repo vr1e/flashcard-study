@@ -17,13 +17,6 @@
 
 [Describe your approach. Include the key technical decisions, architecture patterns, and any important algorithms or data structures.]
 
-### Code Example
-
-```python
-# Show the core concept with code or pseudocode
-# Keep it simple and focused on the main idea
-```
-
 ### Data/API Changes
 
 [If this changes the database, API endpoints, or data structures, list them here. Otherwise, skip this subsection.]

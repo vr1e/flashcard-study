@@ -47,65 +47,26 @@ We'll implement the SM-2 algorithm, which calculates the next review date based 
 
 #### Algorithm Flow
 
-```
 1. User reviews card and rates quality (0-5)
-2. If quality < 3:
+2. If quality < 3 (failed recall):
    - Reset repetitions to 0
    - Set interval to 1 day
-3. If quality >= 3:
+3. If quality >= 3 (successful recall):
    - Increment repetitions
    - Calculate new interval based on repetitions:
-     * 1st repetition: 1 day
-     * 2nd repetition: 6 days
-     * 3rd+ repetition: previous_interval × ease_factor
+     - 1st repetition: 1 day
+     - 2nd repetition: 6 days
+     - 3rd+ repetition: previous_interval × ease_factor
 4. Adjust ease_factor based on quality
 5. Set next_review = today + interval
-```
 
 #### Data Model
 
-```python
-class Card(models.Model):
-    # ... existing fields
-    ease_factor = FloatField(default=2.5)    # Range: 1.3+
-    interval = IntegerField(default=1)        # Days
-    repetitions = IntegerField(default=0)     # Count
-    next_review = DateTimeField()             # Timestamp
-```
-
-### Code Examples
-
-```python
-def calculate_next_review(card, quality):
-    """SM-2 Algorithm implementation."""
-
-    if quality < 3:
-        # Failed: reset repetitions, review tomorrow
-        card.repetitions = 0
-        card.interval = 1
-    else:
-        # Passed: increase interval
-        if card.repetitions == 0:
-            card.interval = 1
-        elif card.repetitions == 1:
-            card.interval = 6
-        else:
-            card.interval = round(card.interval * card.ease_factor)
-
-        card.repetitions += 1
-
-    # Adjust ease factor based on performance
-    # EF' = EF + (0.1 - (5 - q) × (0.08 + (5 - q) × 0.02))
-    card.ease_factor = max(
-        1.3,
-        card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-    )
-
-    # Set next review date
-    card.next_review = datetime.now() + timedelta(days=card.interval)
-
-    return card
-```
+Card model requires these SM-2 tracking fields:
+- **ease_factor** (Float, default 2.5): Card difficulty multiplier, minimum 1.3
+- **interval** (Integer, default 1): Days until next review
+- **repetitions** (Integer, default 0): Consecutive successful reviews count
+- **next_review** (DateTime): Timestamp for next review date
 
 ### User Interface/Experience
 
@@ -153,23 +114,12 @@ def calculate_next_review(card, quality):
 
 ### Testing Approach
 
-```python
-# Unit tests for algorithm
-def test_first_review_success():
-    """First successful review should set interval to 1 day"""
-
-def test_second_review_success():
-    """Second successful review should set interval to 6 days"""
-
-def test_failed_review_resets():
-    """Failed review should reset repetitions to 0"""
-
-def test_ease_factor_adjusts():
-    """Ease factor should adjust based on quality rating"""
-
-def test_ease_factor_minimum():
-    """Ease factor should never go below 1.3"""
-```
+Unit tests cover:
+- First successful review sets interval to 1 day
+- Second successful review sets interval to 6 days
+- Failed review resets repetitions to 0
+- Ease factor adjusts based on quality rating
+- Ease factor never goes below 1.3
 
 ### Performance Considerations
 
