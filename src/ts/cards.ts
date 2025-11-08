@@ -9,6 +9,13 @@ import { api } from './api.js';
 declare const bootstrap: any;
 
 // ============================================================================
+// In-Memory Card Storage (prevents XSS via data attributes)
+// ============================================================================
+
+// Store cards by ID to avoid putting user data in HTML attributes
+const cardStorage = new Map<number, any>();
+
+// ============================================================================
 // Deck Details Loading
 // ============================================================================
 
@@ -68,6 +75,12 @@ async function loadCards(deckId: number): Promise<void> {
             return;
         }
 
+        // Populate card storage map (prevents XSS via data attributes)
+        cardStorage.clear();
+        cards.forEach((card: any) => {
+            cardStorage.set(card.id, card);
+        });
+
         cardsList.innerHTML = cards.map((card: any) => createCardItem(card)).join('');
 
         // Attach event listeners to card action buttons
@@ -108,10 +121,7 @@ function createCardItem(card: any): string {
                     <div class="col-md-2 text-end">
                         <div class="btn-group mt-2">
                             <button class="btn btn-sm btn-outline-primary card-edit-btn"
-                                    data-card-id="${card.id}"
-                                    data-language-a="${escapeHtml(langA)}"
-                                    data-language-b="${escapeHtml(langB)}"
-                                    data-context="${escapeHtml(context)}">
+                                    data-card-id="${card.id}">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger card-delete-btn"
@@ -137,10 +147,30 @@ function attachCardEventListeners(): void {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             const btn = button as HTMLElement;
-            const cardId = parseInt(btn.dataset.cardId || '0', 10);
-            const languageA = btn.dataset.languageA || '';
-            const languageB = btn.dataset.languageB || '';
-            const context = btn.dataset.context || '';
+
+            // Validate cardId exists and is valid
+            if (!btn.dataset.cardId) {
+                console.error('Edit button missing data-card-id attribute');
+                return;
+            }
+
+            const cardId = parseInt(btn.dataset.cardId, 10);
+            if (isNaN(cardId) || cardId <= 0) {
+                console.error('Invalid card ID:', btn.dataset.cardId);
+                return;
+            }
+
+            // Fetch card data from storage map (prevents XSS via data attributes)
+            const card = cardStorage.get(cardId);
+            if (!card) {
+                console.error('Card not found in storage:', cardId);
+                return;
+            }
+
+            const languageA = card.language_a || card.front || '';
+            const languageB = card.language_b || card.back || '';
+            const context = card.context || '';
+
             editCard(cardId, languageA, languageB, context);
         });
     });
@@ -151,8 +181,31 @@ function attachCardEventListeners(): void {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             const btn = button as HTMLElement;
-            const cardId = parseInt(btn.dataset.cardId || '0', 10);
-            const deckId = parseInt(btn.dataset.deckId || '0', 10);
+
+            // Validate cardId exists and is valid
+            if (!btn.dataset.cardId) {
+                console.error('Delete button missing data-card-id attribute');
+                return;
+            }
+
+            const cardId = parseInt(btn.dataset.cardId, 10);
+            if (isNaN(cardId) || cardId <= 0) {
+                console.error('Invalid card ID:', btn.dataset.cardId);
+                return;
+            }
+
+            // Validate deckId exists and is valid
+            if (!btn.dataset.deckId) {
+                console.error('Delete button missing data-deck-id attribute');
+                return;
+            }
+
+            const deckId = parseInt(btn.dataset.deckId, 10);
+            if (isNaN(deckId) || deckId <= 0) {
+                console.error('Invalid deck ID:', btn.dataset.deckId);
+                return;
+            }
+
             deleteCard(cardId, deckId);
         });
     });
