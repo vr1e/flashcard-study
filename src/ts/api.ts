@@ -103,6 +103,11 @@ interface Statistics {
 		cards_studied: number;
 		time_spent: number;
 	}>;
+	// Optional separate counts (available when not filtering by specific deck)
+	personal_decks?: number;
+	shared_decks?: number;
+	personal_cards?: number;
+	shared_cards?: number;
 }
 
 interface Partnership {

@@ -51,6 +51,14 @@
 							</a>
 						</li>
 						<li class="nav-item">
+							<a class="nav-link" href="{% url 'partnership' %}">
+								<i class="bi bi-people"></i> Learning Partner
+								{% if show_partnership_badge %}
+								<span class="badge bg-light text-primary ms-1">New</span>
+								{% endif %}
+							</a>
+						</li>
+						<li class="nav-item">
 							<span class="nav-link">
 								<i class="bi bi-person"></i> {{ user.username }}
 							</span>
@@ -94,6 +102,9 @@
 
 		<!-- Chart.js -->
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+		<!-- QRCode.js for generating QR codes -->
+		<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 		<!-- CSRF Token for AJAX requests -->
 		{% csrf_token %}

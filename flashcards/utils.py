@@ -99,6 +99,12 @@ def get_study_stats(user, deck=None, deck_filter=None):
     from django.db.models import Avg, Count, Sum
     from django.db.models.functions import TruncDate
 
+    # Initialize separate counts (may not be available for specific deck/filter)
+    personal_decks_count = None
+    shared_decks_count = None
+    personal_cards_count = None
+    shared_cards_count = None
+
     # Filter reviews by deck if specified
     if deck:
         reviews = Review.objects.filter(card__deck=deck)
@@ -114,15 +120,25 @@ def get_study_stats(user, deck=None, deck_filter=None):
 
         reviews = Review.objects.filter(session__user=user)
 
-        # Include both owned decks and partnership decks
-        user_decks = Deck.objects.filter(
-            Q(user=user) |
+        # Separate personal and shared decks for breakdown
+        personal_decks = Deck.objects.filter(user=user).distinct()
+
+        shared_decks = Deck.objects.filter(
             Q(partnerships__user_a=user, partnerships__is_active=True) |
             Q(partnerships__user_b=user, partnerships__is_active=True)
-        ).distinct()
+        ).exclude(user=user).distinct()
+
+        # Include both owned decks and partnership decks
+        user_decks = personal_decks | shared_decks
 
         cards = Card.objects.filter(deck__in=user_decks)
         total_decks = user_decks.count()
+        personal_decks_count = personal_decks.count()
+        shared_decks_count = shared_decks.count()
+
+        # Separate card counts
+        personal_cards_count = Card.objects.filter(deck__in=personal_decks).count()
+        shared_cards_count = Card.objects.filter(deck__in=shared_decks).count()
 
     # Basic statistics
     total_reviews = reviews.count()
@@ -163,7 +179,7 @@ def get_study_stats(user, deck=None, deck_filter=None):
     # Reverse to get chronological order (oldest to newest)
     recent_activity.reverse()
 
-    return {
+    result = {
         'total_reviews': total_reviews,
         'total_cards': total_cards,
         'average_quality': average_quality,
@@ -172,3 +188,12 @@ def get_study_stats(user, deck=None, deck_filter=None):
         'total_decks': total_decks,
         'recent_activity': recent_activity,
     }
+
+    # Add separate counts if available (when not filtering by specific deck)
+    if personal_decks_count is not None:
+        result['personal_decks'] = personal_decks_count
+        result['shared_decks'] = shared_decks_count
+        result['personal_cards'] = personal_cards_count
+        result['shared_cards'] = shared_cards_count
+
+    return result
