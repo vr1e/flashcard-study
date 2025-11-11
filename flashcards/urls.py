@@ -16,6 +16,7 @@ urlpatterns = [
     path('decks/<int:deck_id>/study/', views.study_view, name='study'),
     path('stats/', views.stats_view, name='stats'),
     path('partnership/', views.partnership_view, name='partnership'),
+    path('join/<str:code>/', views.join_partnership, name='join_partnership'),
 
     # ========================================================================
     # Authentication

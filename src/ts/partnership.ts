@@ -5,6 +5,9 @@
 
 import { api } from "./api.js";
 
+// Global QRCode declaration (from qrcodejs library)
+declare const QRCode: any;
+
 // ============================================================================
 // State Management
 // ============================================================================
@@ -132,6 +135,39 @@ export async function showInviteModal(): Promise<void> {
 	try {
 		const invitation = await api.createPartnershipInvite();
 		codeElement.textContent = invitation.code;
+
+		// Generate shareable URL
+		const shareUrl = `${window.location.origin}/join/${invitation.code}/`;
+		const shareUrlInput = document.getElementById("share-url") as HTMLInputElement;
+		if (shareUrlInput) {
+			shareUrlInput.value = shareUrl;
+		}
+
+		// Update social share links
+		const whatsappLink = document.getElementById("whatsapp-share") as HTMLAnchorElement;
+		const emailLink = document.getElementById("email-share") as HTMLAnchorElement;
+		if (whatsappLink) {
+			whatsappLink.href = `https://wa.me/?text=${encodeURIComponent('Join me on Flashcard Study! ' + shareUrl)}`;
+		}
+		if (emailLink) {
+			emailLink.href = `mailto:?subject=${encodeURIComponent('Join me on Flashcard Study')}&body=${encodeURIComponent('Click this link to become my learning partner: ' + shareUrl)}`;
+		}
+
+		// Generate QR code
+		const qrContainer = document.getElementById("qr-code") as HTMLElement;
+		if (qrContainer) {
+			qrContainer.innerHTML = ''; // Clear previous QR code
+			// @ts-ignore - qrcodejs doesn't have TypeScript types
+			new QRCode(qrContainer, {
+				text: shareUrl,
+				width: 200,
+				height: 200,
+				colorDark: "#000000",
+				colorLight: "#ffffff",
+				correctLevel: QRCode.CorrectLevel.M
+			});
+		}
+
 		codeContainer.style.display = "block";
 		loadingElement.style.display = "none";
 
@@ -163,6 +199,28 @@ export function copyInviteCode(): void {
 			btn.innerHTML = originalText;
 			btn.classList.remove("btn-success");
 			btn.classList.add("btn-outline-secondary");
+		}, 2000);
+	});
+}
+
+/**
+ * Copy shareable URL to clipboard
+ */
+export function copyShareUrl(): void {
+	const shareUrlInput = document.getElementById("share-url") as HTMLInputElement;
+	const shareUrl = shareUrlInput.value;
+
+	navigator.clipboard.writeText(shareUrl).then(() => {
+		const btn = document.getElementById("copy-url-btn") as HTMLButtonElement;
+		const originalText = btn.innerHTML;
+		btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+		btn.classList.remove("btn-outline-primary");
+		btn.classList.add("btn-success");
+
+		setTimeout(() => {
+			btn.innerHTML = originalText;
+			btn.classList.remove("btn-success");
+			btn.classList.add("btn-outline-primary");
 		}, 2000);
 	});
 }
@@ -266,6 +324,7 @@ export async function dissolvePartnership(): Promise<void> {
 (window as any).showPartnershipModal = showPartnershipModal;
 (window as any).showInviteModal = showInviteModal;
 (window as any).copyInviteCode = copyInviteCode;
+(window as any).copyShareUrl = copyShareUrl;
 (window as any).showAcceptModal = showAcceptModal;
 (window as any).acceptInvitation = acceptInvitation;
 (window as any).confirmDissolvePartnership = confirmDissolvePartnership;

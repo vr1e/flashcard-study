@@ -17,10 +17,11 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
-		"typescript": "^5.9.3",
-		"@types/bootstrap": "^5.2.10"
+		"@types/bootstrap": "^5.2.10",
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"chart.js": "^4.5.1"
+		"chart.js": "^4.5.1",
+		"qrcodejs": "^1.0.0"
 	}
 }
