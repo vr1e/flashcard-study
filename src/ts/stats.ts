@@ -32,9 +32,21 @@ async function loadStatistics(filter: 'all' | 'courses' | 'collections' = 'all')
     try {
         const stats = await api.getUserStats(filter);
 
-        // Update summary cards
-        document.getElementById('total-decks')!.textContent = stats.total_decks.toString();
-        document.getElementById('total-cards')!.textContent = stats.total_cards.toString();
+        // Update summary cards with breakdown if available
+        const decksElement = document.getElementById('total-decks')!;
+        if (stats.personal_decks !== undefined && stats.shared_decks !== undefined) {
+            decksElement.textContent = `${stats.total_decks} (${stats.personal_decks} personal, ${stats.shared_decks} shared)`;
+        } else {
+            decksElement.textContent = stats.total_decks.toString();
+        }
+
+        const cardsElement = document.getElementById('total-cards')!;
+        if (stats.personal_cards !== undefined && stats.shared_cards !== undefined) {
+            cardsElement.textContent = `${stats.total_cards} (${stats.personal_cards} personal, ${stats.shared_cards} shared)`;
+        } else {
+            cardsElement.textContent = stats.total_cards.toString();
+        }
+
         document.getElementById('cards-due')!.textContent = stats.cards_due_today.toString();
         document.getElementById('study-streak')!.textContent = stats.study_streak_days.toString();
 
