@@ -16,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 import json
 
-from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation, UserCardProgress
+from .models import Deck, Card, StudySession, Review, Partnership, PartnershipInvitation, UserCardProgress, UserProfile
 
 
 # ============================================================================
@@ -40,6 +40,9 @@ def index(request):
     Redirects first-time users to welcome page.
     """
     from django.db.models import Q
+
+    # Get or create user profile
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
 
     # Check if this is user's first visit (no decks and no partnership)
     user_decks_count = Deck.objects.filter(user=request.user).count()
@@ -74,6 +77,7 @@ def index(request):
         'personal_decks': personal_decks,
         'shared_decks': shared_decks,
         'partnership': partnership,
+        'user_profile': user_profile,
     })
 
 
@@ -124,6 +128,11 @@ def partnership_view(request):
     Partnership management page.
     Create, accept, and manage partnerships.
     """
+    # Get or create user profile and mark partnership tutorial as seen
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+    if not user_profile.partnership_tutorial_seen:
+        user_profile.mark_partnership_tutorial_seen()
+
     return render(request, 'partnership.html')
 
 

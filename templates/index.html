@@ -48,10 +48,10 @@
         <div class="d-flex align-items-center justify-content-between">
             <div>
                 <h6 class="mb-1"><i class="bi bi-lightbulb-fill"></i> Want to learn together?</h6>
-                <small>Partner with your learning buddy to create shared courses and study together!</small>
+                <small>Partner with your learning partner to create shared courses and study together!</small>
             </div>
             <button class="btn btn-light btn-sm" onclick="window.showInviteModal()">
-                <i class="bi bi-send"></i> Invite Buddy
+                <i class="bi bi-send"></i> Invite Partner
             </button>
         </div>
     </div>
@@ -67,12 +67,12 @@
 
 <!-- Dual Mode View (Has Partnership) -->
 <div id="dual-mode-view" class="dual-mode-dashboard" style="display: none;">
-    <!-- Courses Section (Learning Buddy) -->
-    <div id="courses-section" class="buddy-section" style="display: none;">
+    <!-- Courses Section (Learning Partner) -->
+    <div id="courses-section" class="partner-section" style="display: none;">
         <div class="row mb-2">
             <div class="col-12">
-                <h4><i class="bi bi-people-fill"></i> 🤝 Learning Buddy</h4>
-                <p class="text-muted small">Courses you share with your learning buddy</p>
+                <h4><i class="bi bi-people-fill"></i> 🤝 Learning Partner</h4>
+                <p class="text-muted small">Courses you share with your learning partner</p>
             </div>
         </div>
         <div id="courses-grid" class="row g-4 mb-4">
@@ -105,9 +105,51 @@
 <!-- No Decks State -->
 <div id="no-decks" class="row g-4" style="display: none;">
     <div class="col-12 text-center py-5">
-        <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
-        <h3 class="mt-3">No courses or collections yet</h3>
-        <p class="text-muted">Create your first course or collection to get started!</p>
+        <i class="bi bi-rocket-takeoff text-primary" style="font-size: 4rem;"></i>
+        <h3 class="mt-3">Welcome! Let's get started</h3>
+        <p class="text-muted mb-4">Choose how you'd like to begin your language learning journey</p>
+
+        <div class="row g-4 mt-4 justify-content-center">
+            <!-- Step 1: Create Collection -->
+            <div class="col-md-5">
+                <div class="card h-100 shadow-sm hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fs-4 fw-bold text-primary">1</span>
+                        </div>
+                        <h5 class="card-title">Create Your First Collection</h5>
+                        <p class="card-text text-muted">
+                            Start building your personal flashcard collection to study at your own pace.
+                        </p>
+                        <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#createDeckModal">
+                            <i class="bi bi-plus-circle"></i> Create Collection
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Invite Partner -->
+            <div class="col-md-5">
+                <div class="card h-100 shadow-sm hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fs-4 fw-bold text-success">2</span>
+                        </div>
+                        <h5 class="card-title">Invite Your Learning Partner</h5>
+                        <p class="card-text text-muted">
+                            Partner up to create shared courses and learn together!
+                        </p>
+                        <button class="btn btn-outline-success w-100" onclick="window.location.href='{% url "partnership" %}'">
+                            <i class="bi bi-people"></i> Find Your Partner
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-muted small mt-4 mb-0">
+            <i class="bi bi-lightbulb"></i> You can do both! Create collections and partner up to maximize your learning.
+        </p>
     </div>
 </div>
 
@@ -135,7 +177,7 @@
                             <label class="form-check-label" for="deck-shared">
                                 <i class="bi bi-people"></i> Create as shared course
                             </label>
-                            <div class="form-text" id="shared-deck-help">Course will be accessible by both you and your learning buddy</div>
+                            <div class="form-text" id="shared-deck-help">Course will be accessible by both you and your learning partner</div>
                         </div>
                     </div>
                 </form>
@@ -264,7 +306,7 @@
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <strong>Warning:</strong> This action will end your partnership.
                 </div>
-                <p>Shared courses will become personal collections for the original creator and will no longer be accessible to your learning buddy. You won't be able to create new shared courses together.</p>
+                <p>Shared courses will become personal collections for the original creator and will no longer be accessible to your learning partner. You won't be able to create new shared courses together.</p>
                 <p class="mb-0"><strong>Are you sure you want to dissolve this partnership?</strong></p>
                 <div id="dissolve-error" class="alert alert-danger mt-3" style="display: none;"></div>
             </div>

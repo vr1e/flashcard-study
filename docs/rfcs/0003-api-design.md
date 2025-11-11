@@ -258,94 +258,38 @@ All API endpoints require authentication except:
 - Subsequent API requests include session cookie
 - CSRF token required for POST/PUT/DELETE
 
-### Code Examples
+### Implementation Pattern
 
-#### Django View Template
+#### Django View Pattern
 
-```python
-@login_required
-@require_http_methods(["POST"])
-def deck_create(request):
-    try:
-        data = json.loads(request.body)
+All API views follow this pattern:
 
-        # Validate input
-        if not data.get('title'):
-            return JsonResponse({
-                'success': False,
-                'error': {
-                    'code': 'VALIDATION_ERROR',
-                    'message': 'Title is required'
-                }
-            }, status=400)
+1. **Authentication**: Require login via `@login_required` decorator
+2. **Input Validation**: Parse JSON body and validate required fields
+3. **Business Logic**: Create/update/delete resources using Django ORM
+4. **Response Format**: Return consistent JSON structure with success/error
+5. **Error Handling**: Catch exceptions and return appropriate HTTP status codes
 
-        # Create deck
-        deck = Deck.objects.create(
-            user=request.user,
-            title=data['title'],
-            description=data.get('description', '')
-        )
+Key aspects:
+- Validate input before database operations
+- Use appropriate HTTP status codes (200 OK, 201 Created, 400 Bad Request, 404 Not Found, etc.)
+- Include CSRF protection for POST/PUT/DELETE
+- Return timestamps in ISO 8601 format
 
-        # Return success
-        return JsonResponse({
-            'success': True,
-            'deck': {
-                'id': deck.id,
-                'title': deck.title,
-                'description': deck.description,
-                'total_cards': 0,
-                'cards_due': 0,
-                'created_at': deck.created_at.isoformat(),
-                'updated_at': deck.updated_at.isoformat()
-            }
-        }, status=201)
+#### TypeScript API Client Pattern
 
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'INTERNAL_ERROR',
-                'message': str(e)
-            }
-        }, status=500)
-```
+Frontend API client provides type-safe methods for all endpoints:
 
-#### TypeScript API Client
+- **Base URL**: Centralized API base path
+- **CSRF Handling**: Automatic CSRF token extraction and inclusion
+- **Error Handling**: Parse error responses and throw typed exceptions
+- **Type Safety**: Return properly typed objects (Deck, Card, etc.)
 
-```typescript
-class FlashcardAPI {
-	private baseURL = "/api";
-
-	async getDecks(): Promise<Deck[]> {
-		const response = await fetch(`${this.baseURL}/decks/`);
-		const data = await response.json();
-		return data.decks;
-	}
-
-	async createDeck(title: string, description: string): Promise<Deck> {
-		const response = await fetch(`${this.baseURL}/decks/create/`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-CSRFToken": this.getCsrfToken(),
-			},
-			body: JSON.stringify({ title, description }),
-		});
-
-		const data = await response.json();
-
-		if (!data.success) {
-			throw new Error(data.error.message);
-		}
-
-		return data.deck;
-	}
-
-	private getCsrfToken(): string {
-		return document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
-	}
-}
-```
+Methods include:
+- GET requests for fetching data
+- POST requests for creating resources
+- PUT requests for updating resources
+- DELETE requests for removing resources
 
 ## Alternatives Considered
 
@@ -383,25 +327,20 @@ class FlashcardAPI {
 
 ### Testing Approach
 
-```python
-# Django tests
-class APITestCase(TestCase):
-    def test_deck_list_requires_auth(self):
-        response = self.client.get('/api/decks/')
-        self.assertEqual(response.status_code, 302)  # Redirect to login
+**Django API Tests:**
 
-    def test_deck_create_success(self):
-        self.client.login(username='test', password='test')
-        response = self.client.post('/api/decks/create/',
-            data={'title': 'New Deck'},
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.json()['success'])
+Test coverage includes:
+- **Authentication**: Endpoints require login (redirect to login page for unauthenticated requests)
+- **CRUD Operations**: Create, read, update, delete operations work correctly
+- **Validation**: Invalid input returns 400 Bad Request with error details
+- **Authorization**: Users can only access their own resources (403 Forbidden otherwise)
+- **Business Logic**: Card review correctly updates SM-2 algorithm fields
+- **Response Format**: All responses follow consistent structure
 
-    def test_card_review_updates_srs(self):
-        # ... test that reviewing updates ease_factor, interval, etc.
-```
+Test types:
+- Unit tests for individual endpoints
+- Integration tests for multi-step flows (create deck → add card → study → review)
+- Permission tests to verify access control
 
 ### Performance Considerations
 
@@ -442,143 +381,45 @@ class APITestCase(TestCase):
 
 All backend responses follow a consistent wrapper format:
 
-```json
-{
-  "success": true,
-  "data": <actual_data>
-}
-```
+**Success Response:**
+- `success: true`
+- `data: <actual_data>` - Contains the requested resource(s)
 
-Or for errors:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Error message"
-  }
-}
-```
+**Error Response:**
+- `success: false`
+- `error.code` - Machine-readable error code
+- `error.message` - Human-readable error message
 
 ### Frontend Response Unwrapping
 
-The TypeScript API client automatically unwraps responses in the `fetch()` method:
+The TypeScript API client automatically unwraps responses:
 
-```typescript
-class FlashcardAPI {
-    private async fetch<T>(url: string, options?: RequestInit): Promise<T> {
-        const response = await window.fetch(url, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': this.csrfToken,
-                ...options?.headers,
-            },
-        });
+1. Fetch data from backend endpoint
+2. Parse JSON response
+3. Check `success` flag
+4. If error, throw `ApiError` exception with code and message
+5. If success, return just the `data` property
 
-        const json: ApiResponse<any> = await response.json();
+**Result**: API methods return clean, unwrapped types (e.g., `Deck[]` instead of `ApiResponse<Deck[]>`)
 
-        if (!json.success) {
-            throw new ApiError(json.error || {
-                code: 'UNKNOWN_ERROR',
-                message: 'An unexpected error occurred'
-            });
-        }
-
-        return json.data as T;  // ← Unwrap and return just the data
-    }
-}
-```
-
-**Result**: All API methods return clean, unwrapped data types:
-
-```typescript
-// Method signature
-async getDecks(): Promise<Deck[]>
-
-// Usage (no .data access needed)
-const decks = await api.getDecks();  // Returns Deck[] directly
-```
-
-### Corrected Response Examples
-
-#### GET /api/decks/
-**Backend Returns**:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Spanish Vocabulary",
-      "description": "Common phrases",
-      "total_cards": 50,
-      "cards_due": 12,
-      "created_at": "2024-10-25T10:00:00Z",
-      "updated_at": "2024-10-25T14:30:00Z"
-    }
-  ]
-}
-```
-
-**Frontend Receives** (after unwrapping):
-```typescript
-const decks: Deck[] = await api.getDecks();
-// decks is directly the array, not wrapped
-```
-
-#### POST /api/decks/create/
-**Backend Returns**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": 2,
-    "title": "New Deck",
-    "description": "Optional description",
-    "total_cards": 0,
-    "cards_due": 0,
-    "created_at": "2024-10-25T15:00:00Z",
-    "updated_at": "2024-10-25T15:00:00Z"
-  }
-}
-```
-
-**Frontend Receives** (after unwrapping):
-```typescript
-const deck: Deck = await api.createDeck(title, description);
-// deck is the object directly
-```
+**Example Usage:**
+- `const decks = await api.getDecks()` returns `Deck[]` directly
+- `const deck = await api.createDeck(title, description)` returns `Deck` object
+- Errors are caught via try/catch with typed `ApiError` exceptions
 
 ### Error Handling
 
-Errors are thrown as `ApiError` exceptions:
+Frontend uses custom `ApiError` class for API exceptions:
 
-```typescript
-class ApiError extends Error {
-    code: string;
-    details?: any;
+**Properties:**
+- `code` - Error code from backend (e.g., "DECK_NOT_FOUND")
+- `message` - Error message from backend
+- `details` - Optional additional error details
 
-    constructor(error: { code: string; message: string; details?: any }) {
-        super(error.message);
-        this.name = 'ApiError';
-        this.code = error.code;
-        this.details = error.details;
-    }
-}
-```
-
-**Usage**:
-```typescript
-try {
-    const decks = await api.getDecks();
-} catch (error) {
-    if (error instanceof ApiError) {
-        console.error(`API Error [${error.code}]: ${error.message}`);
-    }
-}
-```
+**Usage Pattern:**
+- Try/catch blocks around API calls
+- Check `error instanceof ApiError` to distinguish API errors from other exceptions
+- Access error code for conditional handling
 
 ### Benefits of This Approach
 
@@ -592,33 +433,14 @@ try {
 
 All endpoints follow this pattern:
 
-```python
-@login_required
-def deck_list(request):
-    try:
-        decks = Deck.objects.filter(user=request.user)
+1. Apply `@login_required` decorator
+2. Query database for user's resources
+3. Serialize data to JSON-compatible format (dictionaries/lists)
+4. Return `JsonResponse` with `success: True` and `data` property
+5. Catch exceptions and return error responses with appropriate HTTP status codes
 
-        data = [
-            {
-                'id': deck.id,
-                'title': deck.title,
-                'description': deck.description,
-                'total_cards': deck.total_cards(),
-                'cards_due': deck.cards_due_count(),
-                'created_at': deck.created_at.isoformat(),
-                'updated_at': deck.updated_at.isoformat()
-            }
-            for deck in decks
-        ]
-
-        return JsonResponse({'success': True, 'data': data})
-
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': {
-                'code': 'INTERNAL_ERROR',
-                'message': str(e)
-            }
-        }, status=500)
-```
+Standard practices:
+- Filter resources by current user
+- Convert model instances to dictionaries with required fields
+- Use ISO format for timestamps
+- Return 500 Internal Server Error for unexpected exceptions

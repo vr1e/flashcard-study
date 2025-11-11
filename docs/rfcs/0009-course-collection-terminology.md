@@ -41,46 +41,21 @@ Without distinct terminology and visual design, users won't grasp the core colla
 
 **Progressive disclosure**: Collaboration features only appear after forming partnership.
 
-### Code Example
+### Implementation Pattern
 
-```python
-# View update to include type information
-def list_decks(request):
-    from django.db.models import Q
+**Backend View Changes:**
 
-    user_decks = Deck.objects.filter(user=request.user)
-    partnership = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).first()
+List decks endpoint updated to categorize decks:
+1. Query user's decks
+2. Query user's active partnership (if exists)
+3. For each deck:
+   - Check if deck is in partnership's shared decks
+   - Set `type` to 'course' (if shared) or 'collection' (if personal)
+   - Set `is_shared` boolean flag
+4. Separate into two arrays: `courses` and `collections`
+5. Return both arrays in response
 
-    courses = []
-    collections = []
-
-    for deck in user_decks:
-        # Check if deck is shared via active partnership
-        is_shared = partnership and partnership.is_active and deck in partnership.decks.all()
-
-        deck_data = {
-            'id': deck.id,
-            'name': deck.name,
-            'type': 'course' if is_shared else 'collection',
-            'is_shared': is_shared
-        }
-
-        if is_shared:
-            courses.append(deck_data)
-        else:
-            collections.append(deck_data)
-
-    return JsonResponse({
-        'success': True,
-        'data': {
-            'courses': courses,
-            'collections': collections
-        }
-    })
-```
+Response structure changed from `{personal: [], shared: []}` to `{courses: [], collections: []}`
 
 ### Data/API Changes
 
@@ -217,193 +192,76 @@ def list_decks(request):
 
 ### Detailed Changes by File
 
-#### `flashcards/views.py` (lines 157-209)
+#### Backend Changes
 
-```python
-def serialize_deck(deck, is_shared=False):
-    # ... existing fields ...
-    return {
-        'id': deck.id,
-        'title': deck.title,
-        'description': deck.description,
-        'type': 'course' if is_shared else 'collection',  # NEW
-        'is_shared': is_shared,
-        # ... rest ...
-    }
+**`flashcards/views.py`:**
+- `serialize_deck()` function adds `type` field ('course' or 'collection' based on sharing status)
+- `deck_list()` response keys renamed from `{personal, shared}` to `{collections, courses}`
 
-# In deck_list():
-return JsonResponse({
-    'success': True,
-    'data': {
-        'courses': [serialize_deck(d, is_shared=True) for d in shared],      # RENAMED
-        'collections': [serialize_deck(d, is_shared=False) for d in personal] # RENAMED
-    }
-})
-```
+#### TypeScript Changes
 
-#### `src/ts/api.ts` (lines 27-40)
+**`src/ts/api.ts`:**
+- `Deck` interface adds `type?: 'course' | 'collection'` field
+- `DecksResponse` interface renamed from `{personal, shared}` to `{collections, courses}`
 
-```typescript
-interface Deck {
-    id: number;
-    title: string;
-    description?: string;
-    type?: 'course' | 'collection';  // NEW
-    is_shared?: boolean;
-    card_count?: number;
-    cards_due?: number;
-}
+**`src/ts/decks.ts`:**
+- Variable names updated: `personalDecks` → `collections`, `sharedDecks` → `courses`
+- Grid IDs updated: `shared-decks-grid` → `courses-grid`, `personal-decks-grid` → `collections-grid`
+- Section IDs updated similarly
+- `createDeckCard()` function parameter renamed: `isShared` → `isCourse`
+- Badge classes and text updated to "Course" vs "Collection"
 
-interface DecksResponse {
-    courses: Deck[];      // Was: shared
-    collections: Deck[];  // Was: personal
-}
-```
+#### Template Changes
 
-#### `src/ts/decks.ts` (major refactor)
+**`templates/welcome.html` (NEW FILE):**
 
-**Lines 29-31**: Update variable names
-```typescript
-const collections = response.collections || [];  // Was: personalDecks
-const courses = response.courses || [];          // Was: sharedDecks
-```
+First-time user onboarding page with:
+- Hero section: "Learn Languages Together" heading with value proposition
+- Two CTA buttons: "Create Your First Collection" and "Invite Your Learning Buddy"
+- Features section with cards explaining collaborative learning benefits
+- Shown only on first visit (session flag)
 
-**Lines 42-52**: Update grid rendering
-```typescript
-if (courses.length > 0) {  // Was: sharedDecks
-    // Render buddy section with orange theme
-}
-if (collections.length > 0) {  // Was: personalDecks
-    // Render personal section with blue theme
-}
-```
+**`templates/index.html` (major restructure):**
 
-**Line 70**: Update deck card creation
-```typescript
-function createDeckCard(deck: any, isCourse: boolean = false): string {
-    const badgeClass = isCourse ? 'course-badge' : 'collection-badge';
-    const badgeText = isCourse ? 'Course' : 'Collection';
-    // ... rest
-}
-```
+**Before Partnership (Single-Mode):**
+- Heading: "My Collections"
+- Invite CTA banner with link to partnership page
+- Single collections grid
 
-#### `templates/welcome.html` (NEW FILE)
+**After Partnership (Dual-Mode):**
+- Side-by-side layout (CSS Grid: 2 columns)
+- Left section: "🤝 Learning Buddy" (orange theme)
+  - Partner info display
+  - Courses grid
+  - "Create New Course" button
+- Right section: "📚 Personal Study" (blue theme)
+  - Collections grid
+  - "Create New Collection" button
 
-```html
-{% extends 'base.html' %}
-{% load static %}
+**Modal Updates:**
+- Title changes from "Create Deck" to context-aware "Create Course" or "Create Collection"
+- Checkbox label: "Share with partner" → "Create as shared course"
+- Help text updated for terminology consistency
 
-{% block content %}
-<div class="welcome-container">
-    <div class="hero-section">
-        <h1>Learn Languages Together</h1>
-        <p>Create flashcard courses with your learning buddy and master languages through bidirectional practice.</p>
-    </div>
+**`static/css/styles.css` (new additions):**
 
-    <div class="cta-section">
-        <button class="btn btn-primary btn-lg">Create Your First Collection</button>
-        <button class="btn btn-outline-primary btn-lg">Invite Your Learning Buddy</button>
-    </div>
+**Dual-Mode Dashboard Layout:**
+- CSS Grid: 2 columns on desktop (grid-template-columns: 1fr 1fr)
+- Mobile breakpoint at 991px: stacks vertically (1 column)
+- 2rem gap between sections
 
-    <div class="features-section">
-        <!-- Feature cards explaining collaborative learning -->
-    </div>
-</div>
-{% endblock %}
-```
+**Color-Coded Sections:**
+- `.buddy-section`: Orange left border (#ff8c42), 1.5rem left padding
+- `.personal-section`: Blue left border (#0d6efd), 1.5rem left padding
 
-#### `templates/index.html` (major restructure)
+**Badges:**
+- `.course-badge`: Orange background (#ff8c42), white text
+- `.collection-badge`: Blue background (#0d6efd), white text
 
-**Before partnership** (single-mode):
-```html
-<div class="single-mode-view" id="pre-partnership-view">
-    <h1>My Collections</h1>
-    <div class="invite-cta-banner">
-        <p>💡 Want to learn together? <a href="{% url 'partnership' %}">Invite your learning buddy!</a></p>
-    </div>
-    <div id="collections-grid"><!-- Collections only --></div>
-</div>
-```
-
-**After partnership** (dual-mode):
-```html
-<div class="dual-mode-dashboard" id="post-partnership-view">
-    <!-- Left: Buddy Section (Orange) -->
-    <section class="buddy-section">
-        <h2>🤝 Learning Buddy</h2>
-        <div class="partner-info"><!-- Partnership status --></div>
-        <div id="courses-grid"><!-- Shared courses --></div>
-        <button class="btn btn-warning">Create New Course</button>
-    </section>
-
-    <!-- Right: Personal Section (Blue) -->
-    <section class="personal-section">
-        <h2>📚 Personal Study</h2>
-        <div id="collections-grid"><!-- Personal collections --></div>
-        <button class="btn btn-primary">Create New Collection</button>
-    </section>
-</div>
-```
-
-**Modal updates**:
-- "Create Deck" modal title → "Create Course" or "Create Collection" (context-aware)
-- "Share with partner" checkbox → "Create as shared course"
-- Help text updates throughout
-
-#### `static/css/styles.css` (new additions)
-
-```css
-/* Dual-mode dashboard layout */
-.dual-mode-dashboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-top: 2rem;
-}
-
-@media (max-width: 991px) {
-    .dual-mode-dashboard {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Color-coded sections */
-.buddy-section {
-    border-left: 4px solid #ff8c42;  /* Orange/warm */
-    padding-left: 1.5rem;
-}
-
-.personal-section {
-    border-left: 4px solid #0d6efd;  /* Blue/cool */
-    padding-left: 1.5rem;
-}
-
-/* Badges */
-.course-badge {
-    background-color: #ff8c42 !important;
-    color: white;
-}
-
-.collection-badge {
-    background-color: #0d6efd !important;
-    color: white;
-}
-
-/* Invite CTA banner */
-.invite-cta-banner {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-}
-
-.invite-cta-banner a {
-    color: white;
-    text-decoration: underline;
-    font-weight: bold;
-}
-```
+**Invite CTA Banner:**
+- Purple gradient background
+- White text with underlined link
+- Rounded corners, padding, bottom margin
 
 #### Minor template updates
 
@@ -639,24 +497,12 @@ All originally planned features plus deferred enhancements have been fully imple
 - Conditional rendering based on `hasPartnership` flag
 - Gradient invite banner with compelling copy
 
-**Key Code Changes**:
-```typescript
-// Fetch both decks and partnership status
-const [decksResponse, partnershipResponse] = await Promise.all([
-    api.getDecks(),
-    api.getPartnership()
-]);
-const hasPartnership = partnershipResponse !== null;
-
-// Show appropriate view
-if (hasPartnership) {
-    singleModeView.style.display = 'none';
-    dualModeView.style.display = 'block';
-} else {
-    singleModeView.style.display = 'block';
-    dualModeView.style.display = 'none';
-}
-```
+**Key Implementation:**
+- Fetch decks and partnership status in parallel using `Promise.all()`
+- Check if partnership exists (response not null)
+- Toggle display between single-mode and dual-mode views using CSS display property
+- Single-mode: show collections grid + invite banner
+- Dual-mode: show buddy section + personal section side-by-side
 
 #### 2. Welcome Page ✅
 **Files**: `templates/welcome.html` (NEW), `flashcards/views.py:26-32`, `flashcards/urls.py:14`
@@ -668,14 +514,10 @@ if (hasPartnership) {
 - CTAs for creating collection or inviting buddy
 - Responsive design (mobile-friendly)
 
-**Session Logic**:
-```python
-# In index view
-if user_decks_count == 0 and not has_partnership:
-    if not request.session.get('welcome_shown'):
-        request.session['welcome_shown'] = True
-        return redirect('welcome')
-```
+**Session Logic:**
+- In dashboard view, check if user has zero decks and no partnership
+- If true and session flag not set: set `welcome_shown` flag and redirect to welcome page
+- Prevents repeated redirects on subsequent visits
 
 #### 3. Dual-Mode Responsive Grid ✅
 **Files**: `static/css/styles.css:193-211`, `templates/index.html:69`
@@ -687,20 +529,10 @@ if user_decks_count == 0 and not has_partnership:
 - 2rem gap between sections
 - Smooth transitions
 
-**CSS Implementation**:
-```css
-.dual-mode-dashboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-}
-
-@media (max-width: 991px) {
-    .dual-mode-dashboard {
-        grid-template-columns: 1fr;
-    }
-}
-```
+**CSS Implementation:**
+- Grid layout with 2 equal columns and 2rem gap
+- Media query at 991px switches to single column for mobile
+- Orange/blue left borders for visual section separation
 
 #### 4. Stats Filtering API ✅
 **Files**: `flashcards/views.py:856-883`, `flashcards/utils.py:80-115`, `src/ts/api.ts:293-296`, `src/ts/stats.ts:31-76`, `templates/stats.html:16-33`
@@ -711,33 +543,20 @@ if user_decks_count == 0 and not has_partnership:
 - Real-time chart updates when filter changes
 - TypeScript event handlers for tab clicks
 
-**API Implementation**:
-```python
-# Backend
-filter_type = request.GET.get('filter', 'all')
-if filter_type == 'courses':
-    partnership = Partnership.objects.filter(...).first()
-    deck_filter = partnership.decks.all() if partnership else Deck.objects.none()
-elif filter_type == 'collections':
-    deck_filter = Deck.objects.filter(user=request.user, partnerships__isnull=True)
-else:
-    deck_filter = None
+**API Implementation:**
 
-stats = get_study_stats(request.user, deck_filter=deck_filter)
-```
+Backend accepts query parameter `?filter=all|courses|collections`:
+- 'courses': Filter to partnership decks only
+- 'collections': Filter to personal decks only (no partnerships)
+- 'all': No filter (default)
 
-**Frontend**:
-```typescript
-// Tab click handler
-filterTabs.forEach(tab => {
-    tab.addEventListener('click', async () => {
-        const filter = tab.getAttribute('data-filter');
-        filterTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        await loadStatistics(filter);
-    });
-});
-```
+Pass deck filter to `get_study_stats()` function.
+
+**Frontend:**
+Tab click event handlers:
+- Get filter value from data attribute
+- Update active tab styling
+- Reload statistics with new filter parameter
 
 #### 5. Activity Feed System ✅
 **Complete backend + frontend implementation**
@@ -751,19 +570,12 @@ filterTabs.forEach(tab => {
 - `get_display_text()` method for human-readable descriptions
 - Ordered by `-created_at` (newest first)
 
-```python
-class Activity(models.Model):
-    ACTION_TYPES = [
-        ('CARD_ADDED', 'Card Added'),
-        ('DECK_CREATED', 'Deck Created'),
-        ('STUDY_SESSION', 'Study Session Completed'),
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
-    deck = models.ForeignKey(Deck, on_delete=models.CASCADE, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    details = models.JSONField(default=dict, blank=True)
-```
+Activity model fields:
+- `user` - User who performed action (ForeignKey)
+- `action_type` - Type: CARD_ADDED, DECK_CREATED, STUDY_SESSION
+- `deck` - Related deck (ForeignKey, nullable)
+- `created_at` - Timestamp
+- `details` - JSON field for metadata (e.g., card count)
 
 ##### 5b. Activity Logging
 **Files**: `flashcards/views.py:549-557`, `flashcards/views.py:290-297`
@@ -773,17 +585,10 @@ class Activity(models.Model):
 - Stores metadata (card count, etc.) in `details` JSONField
 - Only logs activities for partnership-shared content
 
-```python
-# After creating card on shared deck
-if partnership:
-    from .models import Activity
-    Activity.objects.create(
-        user=request.user,
-        action_type='CARD_ADDED',
-        deck=deck,
-        details={'count': 1}
-    )
-```
+Automatic activity logging occurs:
+- After card creation on shared decks (stores count in details)
+- After deck creation if deck is shared
+- Only logs activities for partnership-shared content
 
 ##### 5c. Activity API Endpoint
 **Files**: `flashcards/views.py:1128-1193`, `flashcards/urls.py:67`
@@ -794,27 +599,14 @@ if partnership:
 - Serializes activities with user info, display text, timestamps
 - Returns `has_partnership` flag
 
-**API Response Format**:
-```json
-{
-    "success": true,
-    "data": {
-        "activities": [
-            {
-                "id": 1,
-                "user": {"username": "alice"},
-                "action_type": "CARD_ADDED",
-                "display_text": "added 3 cards to Spanish for Travelers",
-                "deck": {"id": 5, "title": "Spanish for Travelers"},
-                "created_at": "2025-11-05T10:30:00Z",
-                "details": {"count": 3}
-            }
-        ],
-        "has_partnership": true,
-        "partner": {"username": "alice"}
-    }
-}
-```
+**API Response Format:**
+
+Returns:
+- `activities` - Array of activity objects with user, action_type, display_text, deck, created_at, details
+- `has_partnership` - Boolean flag
+- `partner` - Partner user info (username)
+
+Each activity includes formatted display text (e.g., "added 3 cards to Spanish for Travelers")
 
 ##### 5d. Activity Feed UI
 **Files**: `templates/index.html:82-88`, `static/css/styles.css:213-252`, `src/ts/decks.ts:296-349`, `src/ts/api.ts:306-308`
@@ -827,37 +619,20 @@ if partnership:
 - Empty state handling
 - Graceful error handling
 
-**UI Structure**:
-```html
-<div id="activity-feed-section" class="mt-4">
-    <h6 class="mb-3"><i class="bi bi-clock-history"></i> Recent Activity</h6>
-    <div id="activity-feed" class="activity-feed">
-        <!-- Activities loaded dynamically -->
-    </div>
-</div>
-```
+**UI Structure:**
+- Section with heading "Recent Activity" and clock icon
+- Scrollable feed container (max-height: 400px)
+- Activities loaded dynamically via TypeScript
 
-**TypeScript Implementation**:
-```typescript
-async function loadActivityFeed(): Promise<void> {
-    const response = await api.getActivities(10);
-
-    const activitiesHtml = response.activities.map((activity: any) => {
-        const timeAgo = formatTimeAgo(new Date(activity.created_at));
-        return `
-            <div class="activity-item">
-                <div class="activity-time">${timeAgo}</div>
-                <p class="activity-text">
-                    <span class="activity-user">@${activity.user.username}</span>
-                    ${activity.display_text}
-                </p>
-            </div>
-        `;
-    }).join('');
-
-    activityFeed.innerHTML = activitiesHtml;
-}
-```
+**TypeScript Implementation:**
+- Fetch activities from API (limit: 10)
+- Format timestamps as "time ago" (e.g., "2 hours ago", "5 minutes ago")
+- Render each activity with:
+  - Time ago display
+  - Partner username (e.g., "@alice")
+  - Activity display text
+- Orange-accented styling matching buddy theme
+- Handle empty state gracefully
 
 ### Database Changes
 

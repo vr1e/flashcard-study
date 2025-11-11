@@ -24,6 +24,7 @@ The `rfcs/` directory contains technical design documents that describe features
 | [0008](rfcs/0008-bidirectional-language-learning.md) | Bidirectional Learning        | ✅ Implemented | 100%     | Language fields, direction selection, per-user progress   |
 | [0009](rfcs/0009-course-collection-terminology.md)   | Course/Collection Terminology | ✅ Implemented | 100%     | Progressive disclosure, activity feed, stats filtering    |
 | [0010](rfcs/0010-shared-deck-permission-bugs.md)     | Permission & Security Bugs    | ✅ Implemented | 100%     | 7 bugs fixed: permissions, CSP, error messages            |
+| [0011](rfcs/0011-onboarding-partnership-discoverability.md) | First-Time User Onboarding | ✅ Implemented | 100%     | Enhanced empty state, navigation simplification, UserProfile model |
 
 **Legend**: ✅ Implemented | 🚧 Partial | 📝 Draft | 🔮 Planned
 
@@ -57,6 +58,11 @@ The `rfcs/` directory contains technical design documents that describe features
   - Fixed global stats to include shared decks
   - Replaced inline onclick handlers (CSP compliance)
   - Improved error messages with specific codes
+- **RFC 0011**: First-time user onboarding and partnership discoverability
+  - Enhanced empty state dashboard with visual action cards
+  - Simplified navigation (removed "Learning Buddy" nav link)
+  - Persistent UserProfile model for onboarding state tracking
+  - Complete "Buddy" → "Partner" terminology rebrand
 
 #### 🚧 Incomplete Features
 
@@ -97,12 +103,13 @@ Partnership/Sharing:          ████████████████�
 Bidirectional Learning:       ███████████████████████████████ 100%
 UX & Terminology (RFC 0009):  ███████████████████████████████ 100%
 Bug Fixes (RFC 0010):         ███████████████████████████████ 100%
+Onboarding & UX (RFC 0011):   ███████████████████████████████ 100%
 Automated Testing:            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
-**Current Status**: Couples language learning platform (fully functional, production-ready UX)
+**Current Status**: Couples language learning platform (fully functional, production-ready UX with enhanced onboarding)
 **Next Milestone**: Add comprehensive test coverage (RFC 0004)
-**Current Branch**: `fix/rfc-0010-permission-and-security-bugs` (ready for PR)
+**Current Branch**: `rfc-0011-firsttime-user-onboarding-partnership-discoverability` (ready for PR)
 
 #### RFC Process
 
