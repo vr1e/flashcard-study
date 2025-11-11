@@ -444,3 +444,61 @@ class Activity(models.Model):
             deck_title = self.deck.title if self.deck else 'a deck'
             return f"studied {count} cards in {deck_title}"
         return self.action_type
+
+
+class UserProfile(models.Model):
+    """
+    User profile for tracking onboarding and personalization.
+
+    Stores persistent UI state and onboarding progress.
+    Created automatically on first access after user registration.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        help_text="Associated user account"
+    )
+
+    # Onboarding state flags
+    onboarding_completed = models.BooleanField(
+        default=False,
+        help_text="True when user has completed main onboarding flow"
+    )
+    partnership_tutorial_seen = models.BooleanField(
+        default=False,
+        help_text="True when user has visited partnership page"
+    )
+    dashboard_tutorial_dismissed = models.BooleanField(
+        default=False,
+        help_text="True when user has dismissed the dashboard tutorial"
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Profile: {self.user.username}"
+
+    def mark_onboarding_complete(self):
+        """Mark onboarding as completed."""
+        self.onboarding_completed = True
+        self.save(update_fields=['onboarding_completed', 'updated_at'])
+
+    def mark_partnership_tutorial_seen(self):
+        """Mark partnership tutorial as seen."""
+        self.partnership_tutorial_seen = True
+        self.save(update_fields=['partnership_tutorial_seen', 'updated_at'])
+
+    def dismiss_dashboard_tutorial(self):
+        """Dismiss dashboard tutorial."""
+        self.dashboard_tutorial_dismissed = True
+        self.save(update_fields=['dashboard_tutorial_dismissed', 'updated_at'])
+
+    def should_show_partnership_badge(self):
+        """
+        Determine if 'NEW' badge should be shown for the partnership tutorial.
+        Returns True if the user hasn't seen the partnership tutorial.
+        """
+        return not self.partnership_tutorial_seen

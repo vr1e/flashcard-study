@@ -22,6 +22,16 @@ main {
     flex: 1;
 }
 
+/* Hover Effects */
+.hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
 /* Deck Cards */
 .deck-card {
     transition: transform 0.2s, box-shadow 0.2s;
@@ -146,7 +156,7 @@ main {
 }
 
 /* Course/Collection Color Coding */
-.buddy-section {
+.partner-section {
     border-left: 4px solid #ff8c42;
     padding-left: 1.5rem;
     margin-bottom: 2rem;

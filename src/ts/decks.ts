@@ -50,7 +50,7 @@ async function loadDecks(): Promise<void> {
 
         // Progressive disclosure based on partnership status
         if (hasPartnership) {
-            // DUAL MODE: Show both buddy and personal sections
+            // DUAL MODE: Show both partner and personal sections
             singleModeView.style.display = 'none';
             dualModeView.style.display = ''; // Remove inline style to let CSS grid take over
 
