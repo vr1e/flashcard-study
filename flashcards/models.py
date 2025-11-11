@@ -498,7 +498,7 @@ class UserProfile(models.Model):
 
     def should_show_partnership_badge(self):
         """
-        Determine if 'NEW' badge should show on Learning Buddy navigation.
-        Returns True if user hasn't seen the partnership tutorial.
+        Determine if 'NEW' badge should be shown for the partnership tutorial.
+        Returns True if the user hasn't seen the partnership tutorial.
         """
         return not self.partnership_tutorial_seen
