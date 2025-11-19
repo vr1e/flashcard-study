@@ -1025,6 +1025,16 @@ def partnership_accept(request):
                 }
             }, status=404)
 
+        # Check self-invitation first (faster check)
+        if invitation.inviter == request.user:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'SELF_INVITATION',
+                    'message': 'Cannot accept your own invitation'
+                }
+            }, status=400)
+
         # Validate invitation
         if not invitation.is_valid():
             return JsonResponse({
@@ -1032,15 +1042,6 @@ def partnership_accept(request):
                 'error': {
                     'code': 'EXPIRED',
                     'message': 'This invitation has expired'
-                }
-            }, status=400)
-
-        if invitation.inviter == request.user:
-            return JsonResponse({
-                'success': False,
-                'error': {
-                    'code': 'SELF_INVITATION',
-                    'message': 'Cannot accept your own invitation'
                 }
             }, status=400)
 
@@ -1088,6 +1089,67 @@ def partnership_accept(request):
             'success': False,
             'error': {'code': 'INVALID_JSON', 'message': 'Invalid JSON in request body'}
         }, status=400)
+
+
+@login_required
+@require_http_methods(["GET"])
+def join_partnership(request, code):
+    """
+    GET /join/<code>/
+    Auto-accept partnership invitation from shareable link.
+    Redirects to dashboard with success or error message.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    code = code.upper().strip()
+
+    try:
+        # Find invitation
+        invitation = PartnershipInvitation.objects.get(code=code)
+
+        # Check self-invitation first (faster check)
+        if invitation.inviter == request.user:
+            messages.error(request, 'You cannot accept your own invitation.')
+            return redirect('index')
+
+        # Validate invitation
+        if not invitation.is_valid():
+            messages.error(request, 'This invitation link has expired.')
+            return redirect('index')
+
+        # Check if acceptor already has partnership
+        existing = Partnership.objects.filter(
+            Q(user_a=request.user) | Q(user_b=request.user),
+            is_active=True
+        ).exists()
+
+        if existing:
+            messages.warning(request, 'You already have an active learning partnership.')
+            return redirect('index')
+
+        # Create partnership
+        partnership = Partnership.objects.create(
+            user_a=invitation.inviter,
+            user_b=request.user
+        )
+
+        # Mark invitation as accepted
+        invitation.accepted_by = request.user
+        invitation.accepted_at = timezone.now()
+        invitation.save()
+
+        messages.success(
+            request,
+            f'Partnership created successfully! You are now learning partners with {invitation.inviter.username}.'
+        )
+        return redirect('index')
+
+    except PartnershipInvitation.DoesNotExist:
+        messages.error(request, 'Invalid or expired invitation link.')
+        return redirect('index')
 
 
 @login_required
@@ -1176,7 +1238,7 @@ def partnership_dissolve(request):
 def activity_feed(request):
     """
     GET /api/activity/?limit=10
-    Return recent activities from the user's learning buddy on shared decks.
+    Return recent activities from the user's learning partner on shared decks.
     """
     from django.db.models import Q
     from .models import Activity
