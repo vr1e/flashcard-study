@@ -1025,6 +1025,16 @@ def partnership_accept(request):
                 }
             }, status=404)
 
+        # Check self-invitation first (faster check)
+        if invitation.inviter == request.user:
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'SELF_INVITATION',
+                    'message': 'Cannot accept your own invitation'
+                }
+            }, status=400)
+
         # Validate invitation
         if not invitation.is_valid():
             return JsonResponse({
@@ -1032,15 +1042,6 @@ def partnership_accept(request):
                 'error': {
                     'code': 'EXPIRED',
                     'message': 'This invitation has expired'
-                }
-            }, status=400)
-
-        if invitation.inviter == request.user:
-            return JsonResponse({
-                'success': False,
-                'error': {
-                    'code': 'SELF_INVITATION',
-                    'message': 'Cannot accept your own invitation'
                 }
             }, status=400)
 
@@ -1109,13 +1110,14 @@ def join_partnership(request, code):
         # Find invitation
         invitation = PartnershipInvitation.objects.get(code=code)
 
+        # Check self-invitation first (faster check)
+        if invitation.inviter == request.user:
+            messages.error(request, 'You cannot accept your own invitation.')
+            return redirect('index')
+
         # Validate invitation
         if not invitation.is_valid():
             messages.error(request, 'This invitation link has expired.')
-            return redirect('index')
-
-        if invitation.inviter == request.user:
-            messages.error(request, 'You cannot accept your own invitation.')
             return redirect('index')
 
         # Check if acceptor already has partnership
