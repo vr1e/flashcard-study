@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Flashcard Study Tool** - Couples language learning platform with bidirectional spaced repetition
-**Stack**: Django 4.2 + TypeScript + Bootstrap 5 + Chart.js
+**Stack**: Django 5.2 + TypeScript + Bootstrap 5 + Chart.js
 **Status**: ✅ Partnership & bidirectional learning fully implemented
 
 ### Core Features
