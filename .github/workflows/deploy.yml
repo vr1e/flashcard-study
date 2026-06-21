@@ -41,6 +41,14 @@ jobs:
           DEBUG: "False"
           ALLOWED_HOSTS: "localhost,127.0.0.1"
 
+      - name: Run test suite
+        run: |
+          python manage.py test
+        env:
+          SECRET_KEY: "django-insecure-test-key-for-ci-only"
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
   build-and-deploy:
     name: Build TypeScript and Deploy
     needs: test
