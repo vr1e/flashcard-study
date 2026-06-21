@@ -18,6 +18,6 @@
 	"license": "MIT",
 	"comment": "Chart.js, qrcodejs, and Bootstrap are loaded via CDN in templates/base.html, not bundled, so they are not npm dependencies. TypeScript is the only build-time requirement.",
 	"devDependencies": {
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	}
 }

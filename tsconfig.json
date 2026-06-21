@@ -5,8 +5,8 @@
 		"lib": ["ES2020", "DOM"],
 
 		/* Modules */
-		"module": "ES2020",
-		"moduleResolution": "node",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
 
 		/* Emit */

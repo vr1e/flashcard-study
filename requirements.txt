@@ -1,14 +1,14 @@
-# Django Framework
-Django>=5.2.7,<6.0
+# Django Framework (5.2 LTS — security support through 2028)
+Django>=5.2.15,<6.0
 
 # Production dependencies
 python-decouple==3.8
-whitenoise==6.6.0
+whitenoise==6.12.0
 
 # Database (SQLite is included with Python/Django)
 
 # Production server (optional, for deployment)
-gunicorn>=21.2.0
+gunicorn>=26.0.0
 
 # Development tools (optional)
-django-debug-toolbar>=4.2.0
+django-debug-toolbar>=7.0.0
