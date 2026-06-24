@@ -22,12 +22,12 @@
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="filter-courses-tab" data-filter="courses" type="button">
-                    <i class="bi bi-people"></i> Courses Only
+                    <i class="bi bi-people"></i> Shared Decks Only
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="filter-collections-tab" data-filter="collections" type="button">
-                    <i class="bi bi-book"></i> Collections Only
+                    <i class="bi bi-book"></i> Personal Decks Only
                 </button>
             </li>
         </ul>
@@ -41,7 +41,7 @@
             <div class="card-body">
                 <i class="bi bi-stack text-primary" style="font-size: 2rem;"></i>
                 <h3 id="total-decks" class="mt-2">0</h3>
-                <p class="text-muted mb-0">Total Courses & Collections</p>
+                <p class="text-muted mb-0">Total Decks</p>
             </div>
         </div>
     </div>
@@ -100,11 +100,11 @@
         </div>
     </div>
 
-    <!-- Average Quality by Course/Collection -->
+    <!-- Average Quality by Deck -->
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Average Quality by Course/Collection</h5>
+                <h5 class="mb-0">Average Quality by Deck</h5>
             </div>
             <div class="card-body">
                 <canvas id="deck-quality-chart"></canvas>
