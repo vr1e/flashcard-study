@@ -193,10 +193,18 @@ def deck_list(request):
         is_active=True
     ).prefetch_related('decks').first()
 
-    # Personal decks (created by user, not shared)
+    # Personal decks (created by user, not shared, not pending-share)
     personal = Deck.objects.filter(
         user=request.user,
-        partnerships__isnull=True
+        partnerships__isnull=True,
+        share_pending=False
+    ).order_by('-updated_at')
+
+    # Decks the user marked shared before having a partner (not yet attached)
+    pending = Deck.objects.filter(
+        user=request.user,
+        partnerships__isnull=True,
+        share_pending=True
     ).order_by('-updated_at')
 
     # Shared decks (via partnership)
@@ -204,7 +212,7 @@ def deck_list(request):
 
     partner = partnership.get_partner(request.user) if partnership else None
 
-    def serialize_deck(deck, is_shared=False):
+    def serialize_deck(deck, is_shared=False, is_pending=False):
         result = {
             'id': deck.id,
             'title': deck.title,
@@ -213,10 +221,11 @@ def deck_list(request):
             'updated_at': deck.updated_at.isoformat(),
             'total_cards': deck.total_cards(),
             'cards_due': deck.cards_due_count(),
-            'type': 'course' if is_shared else 'collection',
+            'type': 'course' if (is_shared or is_pending) else 'collection',
             'is_shared': is_shared,
+            'share_pending': is_pending,
         }
-        if is_shared:
+        if is_shared or is_pending:
             result['created_by'] = {
                 'id': deck.created_by.id,
                 'username': deck.created_by.username
@@ -224,14 +233,15 @@ def deck_list(request):
             result['shared_with'] = {
                 'id': partner.id,
                 'username': partner.username
-            } if partner else None
+            } if (is_shared and partner) else None
         return result
 
     return JsonResponse({
         'success': True,
         'data': {
             'collections': [serialize_deck(d) for d in personal],
-            'courses': [serialize_deck(d, is_shared=True) for d in shared]
+            'courses': [serialize_deck(d, is_shared=True) for d in shared],
+            'pending_courses': [serialize_deck(d, is_pending=True) for d in pending]
         }
     })
 
@@ -257,7 +267,9 @@ def deck_create(request):
                 'error': {'code': 'INVALID_INPUT', 'message': 'Title is required'}
             }, status=400)
 
-        # Check partnership exists before creating deck (if shared)
+        # If shared, link to an active partnership when one exists. Otherwise the
+        # deck is marked share_pending and promoted to a real shared deck once the
+        # owner forms a partnership (see _attach_pending_decks).
         partner = None
         partnership = None
         if is_shared:
@@ -265,17 +277,10 @@ def deck_create(request):
                 Q(user_a=request.user) | Q(user_b=request.user),
                 is_active=True
             ).first()
+            if partnership:
+                partner = partnership.get_partner(request.user)
 
-            if not partnership:
-                return JsonResponse({
-                    'success': False,
-                    'error': {
-                        'code': 'NO_PARTNERSHIP',
-                        'message': 'Cannot create shared deck without active partnership'
-                    }
-                }, status=400)
-
-            partner = partnership.get_partner(request.user)
+        share_pending = bool(is_shared and not partnership)
 
         # Create deck and link to partnership atomically
         with transaction.atomic():
@@ -283,7 +288,8 @@ def deck_create(request):
                 user=request.user,
                 created_by=request.user,
                 title=title,
-                description=description
+                description=description,
+                share_pending=share_pending,
             )
 
             if is_shared and partnership:
@@ -304,7 +310,8 @@ def deck_create(request):
                 'id': deck.id,
                 'title': deck.title,
                 'description': deck.description,
-                'is_shared': is_shared,
+                'is_shared': bool(is_shared and partnership),
+                'share_pending': share_pending,
                 'created_by': {
                     'id': request.user.id,
                     'username': request.user.username
@@ -956,22 +963,53 @@ def _user_has_active_partnership(user):
     ).exists()
 
 
+def _attach_pending_decks(partnership):
+    """
+    Promote each partner's share_pending decks into real shared decks now that a
+    partnership exists: add them to the partnership, clear the flag, and backfill
+    UserCardProgress for the partner across existing cards (both directions).
+    """
+    from django.utils import timezone
+
+    members = [partnership.user_a, partnership.user_b]
+    pending = Deck.objects.filter(user__in=members, share_pending=True)
+    for deck in pending:
+        partnership.decks.add(deck)
+        deck.share_pending = False
+        deck.save(update_fields=['share_pending'])
+
+        partner = partnership.get_partner(deck.user)
+        for card in deck.cards.all():
+            for direction in ('A_TO_B', 'B_TO_A'):
+                UserCardProgress.objects.get_or_create(
+                    user=partner,
+                    card=card,
+                    study_direction=direction,
+                    defaults={'next_review': timezone.now()},
+                )
+
+
 def _activate_partnership(inviter, acceptor):
     """
     Create the partnership between two users, reusing a previously dissolved
     row if one exists (in either orientation). Dissolve is a soft delete, so a
     plain create() would hit the unique_together(user_a, user_b) constraint
     when the same pair re-partners.
+
+    Any share_pending decks owned by either user are promoted to shared decks.
     """
     from django.db.models import Q
-    partnership = Partnership.objects.filter(
-        Q(user_a=inviter, user_b=acceptor) | Q(user_a=acceptor, user_b=inviter)
-    ).first()
-    if partnership:
-        partnership.is_active = True
-        partnership.save(update_fields=['is_active'])
-    else:
-        partnership = Partnership.objects.create(user_a=inviter, user_b=acceptor)
+    with transaction.atomic():
+        partnership = Partnership.objects.filter(
+            Q(user_a=inviter, user_b=acceptor) | Q(user_a=acceptor, user_b=inviter)
+        ).first()
+        if partnership:
+            partnership.is_active = True
+            partnership.save(update_fields=['is_active'])
+        else:
+            partnership = Partnership.objects.create(user_a=inviter, user_b=acceptor)
+
+        _attach_pending_decks(partnership)
     return partnership
 
 

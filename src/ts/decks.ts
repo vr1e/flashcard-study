@@ -22,10 +22,12 @@ async function loadDecks(): Promise<void> {
     const coursesSection = document.getElementById('courses-section');
     const collectionsSection = document.getElementById('collections-section');
     const singleCollectionsSection = document.getElementById('single-collections-section');
+    const singlePendingSection = document.getElementById('single-pending-section');
     const noDecks = document.getElementById('no-decks');
     const coursesGrid = document.getElementById('courses-grid');
     const collectionsGrid = document.getElementById('collections-grid');
     const singleCollectionsGrid = document.getElementById('single-collections-grid');
+    const singlePendingGrid = document.getElementById('single-pending-grid');
 
     if (!loading || !singleModeView || !dualModeView) return;
 
@@ -38,12 +40,13 @@ async function loadDecks(): Promise<void> {
 
         const collections = decksResponse.collections || [];
         const courses = decksResponse.courses || [];
+        const pendingCourses = decksResponse.pending_courses || [];
         const hasPartnership = partnershipResponse !== null;
 
         // Hide loading
         loading.style.display = 'none';
 
-        if (collections.length === 0 && courses.length === 0) {
+        if (collections.length === 0 && courses.length === 0 && pendingCourses.length === 0) {
             if (noDecks) noDecks.style.display = 'block';
             return;
         }
@@ -54,10 +57,11 @@ async function loadDecks(): Promise<void> {
             singleModeView.style.display = 'none';
             dualModeView.style.display = ''; // Remove inline style to let CSS grid take over
 
-            // Show courses section if any
-            if (courses.length > 0 && coursesSection && coursesGrid) {
+            // Show courses section if any (include any not-yet-promoted pending decks)
+            const allCourses = [...courses, ...pendingCourses];
+            if (allCourses.length > 0 && coursesSection && coursesGrid) {
                 coursesSection.style.display = 'block';
-                const courseCards = courses.map(deck => createDeckCard(deck, true));
+                const courseCards = allCourses.map(deck => createDeckCard(deck, true));
                 coursesGrid.innerHTML = courseCards.join('');
             }
 
@@ -68,9 +72,18 @@ async function loadDecks(): Promise<void> {
                 collectionsGrid.innerHTML = collectionCards.join('');
             }
         } else {
-            // SINGLE MODE: Show only collections with invite banner
+            // SINGLE MODE: Show collections + any pending shared courses, with invite banner
             singleModeView.style.display = 'block';
             dualModeView.style.display = 'none';
+
+            // Show pending shared courses (created before partnering)
+            if (pendingCourses.length > 0 && singlePendingSection && singlePendingGrid) {
+                singlePendingSection.style.display = 'block';
+                const pendingCards = pendingCourses.map(deck => createDeckCard(deck, true));
+                singlePendingGrid.innerHTML = pendingCards.join('');
+            } else if (singlePendingSection) {
+                singlePendingSection.style.display = 'none';
+            }
 
             // Show collections in single mode
             if (collections.length > 0 && singleCollectionsSection && singleCollectionsGrid) {
@@ -101,11 +114,15 @@ async function loadDecks(): Promise<void> {
  * Create HTML for a single deck card
  */
 function createDeckCard(deck: any, isCourse: boolean = false): string {
-    const typeBadge = isCourse
+    const typeBadge = deck.share_pending
+        ? `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending share</span> `
+        : isCourse
         ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Course</span> `
         : `<span class="badge collection-badge"><i class="bi bi-book"></i> Collection</span> `;
 
-    const creatorInfo = (isCourse && deck.created_by)
+    const creatorInfo = deck.share_pending
+        ? `<small class="text-muted d-block">Shared automatically once you partner up</small>`
+        : (isCourse && deck.created_by)
         ? `<small class="text-muted d-block">Created by @${escapeHtml(deck.created_by.username)}</small>`
         : '';
 
@@ -191,7 +208,8 @@ function initDeckCreation(): void {
             await loadDecks();
         } catch (error) {
             console.error('Error creating deck:', error);
-            alert('Failed to create deck. Please try again.');
+            const message = error instanceof Error ? error.message : 'Failed to create deck. Please try again.';
+            alert(message);
         } finally {
             createBtn.textContent = 'Create Deck';
             createBtn.removeAttribute('disabled');

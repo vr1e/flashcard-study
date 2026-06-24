@@ -34,6 +34,7 @@ interface Deck {
 	updated_at: string;
 	type?: 'course' | 'collection';
 	is_shared?: boolean;
+	share_pending?: boolean;
 	created_by?: {
 		id: number;
 		username: string;
@@ -139,6 +140,7 @@ interface PartnershipInvitation {
 interface DecksResponse {
 	collections: Deck[];
 	courses: Deck[];
+	pending_courses?: Deck[];
 }
 
 // ============================================================================
@@ -173,11 +175,26 @@ class FlashcardAPI {
 				},
 			});
 
+			// Parse the JSON body first so backend error messages survive even on
+			// non-2xx responses (the API returns {success, error} with real HTTP
+			// status codes, e.g. 400 for validation failures).
+			let json: ApiResponse<any> | null = null;
+			try {
+				json = (await response.json()) as ApiResponse<any>;
+			} catch {
+				json = null;
+			}
+
 			if (!response.ok) {
+				if (json && json.error) {
+					throw new ApiError(json.error);
+				}
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
-			const json: ApiResponse<any> = await response.json();
+			if (!json) {
+				throw new Error("Invalid JSON response from server");
+			}
 
 			// Check if API request was successful
 			if (!json.success) {

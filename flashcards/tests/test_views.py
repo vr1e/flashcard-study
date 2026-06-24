@@ -9,7 +9,13 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from flashcards.models import Card, Deck, Partnership, PartnershipInvitation
+from flashcards.models import (
+    Card,
+    Deck,
+    Partnership,
+    PartnershipInvitation,
+    UserCardProgress,
+)
 
 
 class AuthenticationRequiredTests(TestCase):
@@ -49,14 +55,19 @@ class DeckApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["code"], "INVALID_INPUT")
 
-    def test_create_shared_deck_without_partnership_fails(self):
+    def test_create_shared_deck_without_partnership_is_pending(self):
         response = self.client.post(
             reverse("api_deck_create"),
             data=json.dumps({"title": "Shared", "shared": True}),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["code"], "NO_PARTNERSHIP")
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertTrue(body["data"]["share_pending"])
+        self.assertFalse(body["data"]["is_shared"])
+        deck = Deck.objects.get(id=body["data"]["id"])
+        self.assertTrue(deck.share_pending)
+        self.assertFalse(deck.partnerships.exists())
 
     def test_deck_list_separates_collections_and_courses(self):
         Deck.objects.create(user=self.user, created_by=self.user, title="Solo")
@@ -121,6 +132,30 @@ class PartnershipFlowTests(TestCase):
             Partnership.objects.filter(
                 user_a=self.alice, user_b=self.bob, is_active=True
             ).exists()
+        )
+
+    def test_accept_promotes_pending_shared_decks(self):
+        # Alice marks a deck shared before partnering; it should attach and
+        # backfill progress for Bob on existing cards once Bob accepts.
+        deck = Deck.objects.create(
+            user=self.alice, created_by=self.alice, title="Pending", share_pending=True
+        )
+        card = Card.objects.create(
+            deck=deck, language_a="hund", language_b="dog", front="hund", back="dog"
+        )
+        invitation = PartnershipInvitation.objects.create(inviter=self.alice)
+        self.client.force_login(self.bob)
+        self.client.post(
+            reverse("api_partnership_accept"),
+            data=json.dumps({"code": invitation.code}),
+            content_type="application/json",
+        )
+
+        deck.refresh_from_db()
+        self.assertFalse(deck.share_pending)
+        self.assertTrue(deck.partnerships.filter(is_active=True).exists())
+        self.assertEqual(
+            UserCardProgress.objects.filter(user=self.bob, card=card).count(), 2
         )
 
     def test_cannot_accept_own_invitation(self):
