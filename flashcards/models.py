@@ -50,6 +50,11 @@ class Deck(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    share_pending = models.BooleanField(
+        default=False,
+        help_text="Owner intends to share this deck, but has no active partnership yet. "
+                  "Promoted to a real shared deck when a partnership is formed."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
