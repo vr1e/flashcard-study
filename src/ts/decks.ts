@@ -117,8 +117,8 @@ function createDeckCard(deck: any, isCourse: boolean = false): string {
     const typeBadge = deck.share_pending
         ? `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending share</span> `
         : isCourse
-        ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Course</span> `
-        : `<span class="badge collection-badge"><i class="bi bi-book"></i> Collection</span> `;
+        ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Shared</span> `
+        : `<span class="badge collection-badge"><i class="bi bi-book"></i> Personal</span> `;
 
     const creatorInfo = deck.share_pending
         ? `<small class="text-muted d-block">Shared automatically once you partner up</small>`

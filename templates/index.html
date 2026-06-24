@@ -48,7 +48,7 @@
         <div class="d-flex align-items-center justify-content-between">
             <div>
                 <h6 class="mb-1"><i class="bi bi-lightbulb-fill"></i> Want to learn together?</h6>
-                <small>Partner with your learning partner to create shared courses and study together!</small>
+                <small>Partner with your learning partner to create shared decks and study together!</small>
             </div>
             <button class="btn btn-light btn-sm" onclick="window.showInviteModal()">
                 <i class="bi bi-send"></i> Invite Partner
@@ -56,17 +56,17 @@
         </div>
     </div>
 
-    <!-- Pending Shared Courses (created before partnering) -->
+    <!-- Pending shared decks (created before partnering) -->
     <div id="single-pending-section" style="display: none;">
-        <h4 class="mb-1"><i class="bi bi-hourglass-split"></i> Pending Shared Courses</h4>
-        <p class="text-muted small">These become shared courses automatically once you partner up.</p>
+        <h4 class="mb-1"><i class="bi bi-hourglass-split"></i> Pending Shared Decks</h4>
+        <p class="text-muted small">These become shared decks automatically once you partner up.</p>
         <div id="single-pending-grid" class="deck-grid mb-4">
-            <!-- Pending courses will be loaded here -->
+            <!-- Pending decks will be loaded here -->
         </div>
     </div>
 
-    <!-- Collections Section (Single Mode) -->
-    <h4 class="mb-3"><i class="bi bi-book-fill"></i> My Collections</h4>
+    <!-- My decks (single mode) -->
+    <h4 class="mb-3"><i class="bi bi-book-fill"></i> My Decks</h4>
     <div id="single-collections-section" style="display: none;">
         <div id="single-collections-grid" class="deck-grid">
             <!-- Collections will be loaded here -->
@@ -76,16 +76,16 @@
 
 <!-- Dual Mode View (Has Partnership) -->
 <div id="dual-mode-view" class="dual-mode-dashboard" style="display: none;">
-    <!-- Courses Section (Learning Partner) -->
+    <!-- Shared decks (with learning partner) -->
     <div id="courses-section" class="partner-section" style="display: none;">
         <div class="row mb-2">
             <div class="col-12">
-                <h4>🤝 Learning Partner</h4>
-                <p class="text-muted small">Courses you share with your learning partner</p>
+                <h4>🤝 Shared Decks</h4>
+                <p class="text-muted small">Decks you study together with your learning partner</p>
             </div>
         </div>
         <div id="courses-grid" class="deck-grid mb-4">
-            <!-- Courses will be loaded here -->
+            <!-- Shared decks will be loaded here -->
         </div>
 
         <!-- Activity Feed -->
@@ -97,12 +97,12 @@
         </div>
     </div>
 
-    <!-- Collections Section (Personal Study) -->
+    <!-- My decks (personal) -->
     <div id="collections-section" class="personal-section" style="display: none;">
         <div class="row mb-2">
             <div class="col-12">
-                <h4>📚 Personal Study</h4>
-                <p class="text-muted small">Private collections only you can access</p>
+                <h4>📚 My Decks</h4>
+                <p class="text-muted small">Private decks only you can access</p>
             </div>
         </div>
         <div id="collections-grid" class="deck-grid">
@@ -119,19 +119,19 @@
         <p class="text-muted mb-4">Choose how you'd like to begin your language learning journey</p>
 
         <div class="row g-4 mt-4 justify-content-center">
-            <!-- Step 1: Create Collection -->
+            <!-- Step 1: Create a deck -->
             <div class="col-md-5">
                 <div class="card h-100 shadow-sm hover-lift">
                     <div class="card-body text-center p-4">
                         <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
                             <span class="fs-4 fw-bold text-primary">1</span>
                         </div>
-                        <h5 class="card-title">Create Your First Collection</h5>
+                        <h5 class="card-title">Create Your First Deck</h5>
                         <p class="card-text text-muted">
-                            Start building your personal flashcard collection to study at your own pace.
+                            Start building your personal flashcard deck to study at your own pace.
                         </p>
                         <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#createDeckModal">
-                            <i class="bi bi-plus-circle"></i> Create Collection
+                            <i class="bi bi-plus-circle"></i> Create Deck
                         </button>
                     </div>
                 </div>
@@ -146,7 +146,7 @@
                         </div>
                         <h5 class="card-title">Invite Your Learning Partner</h5>
                         <p class="card-text text-muted">
-                            Partner up to create shared courses and learn together!
+                            Partner up to create shared decks and learn together!
                         </p>
                         <a href="{% url 'partnership' %}" class="btn btn-outline-success w-100">
                             <i class="bi bi-people"></i> Find Your Partner
@@ -157,7 +157,7 @@
         </div>
 
         <p class="text-muted small mt-4 mb-0">
-            <i class="bi bi-lightbulb"></i> You can do both! Create collections and partner up to maximize your learning.
+            <i class="bi bi-lightbulb"></i> You can do both! Create decks and partner up to maximize your learning.
         </p>
     </div>
 </div>
@@ -167,7 +167,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create New Course or Collection</h5>
+                <h5 class="modal-title">Create New Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -184,9 +184,9 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="deck-shared" value="shared">
                             <label class="form-check-label" for="deck-shared">
-                                <i class="bi bi-people"></i> Create as shared course
+                                <i class="bi bi-people"></i> Create as shared deck
                             </label>
-                            <div class="form-text" id="shared-deck-help">Accessible by both you and your learning partner. No partner yet? It's saved as a pending course and shared automatically once you partner up.</div>
+                            <div class="form-text" id="shared-deck-help">Accessible by both you and your learning partner. No partner yet? It's saved as a pending shared deck and shared automatically once you partner up.</div>
                         </div>
                     </div>
                 </form>
@@ -204,7 +204,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Course/Collection</h5>
+                <h5 class="modal-title">Edit Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -338,7 +338,7 @@
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <strong>Warning:</strong> This action will end your partnership.
                 </div>
-                <p>Shared courses will become personal collections for the original creator and will no longer be accessible to your learning partner. You won't be able to create new shared courses together.</p>
+                <p>Shared decks will become personal decks for the original creator and will no longer be accessible to your learning partner. You won't be able to create new shared decks together.</p>
                 <p class="mb-0"><strong>Are you sure you want to dissolve this partnership?</strong></p>
                 <div id="dissolve-error" class="alert alert-danger mt-3" style="display: none;"></div>
             </div>
