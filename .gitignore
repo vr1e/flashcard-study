@@ -67,3 +67,6 @@ static/js/
 
 # MCPs
 .playwright-mcp
+
+# local documentation
+docs.local

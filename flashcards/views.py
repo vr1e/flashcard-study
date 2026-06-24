@@ -44,19 +44,12 @@ def index(request):
     # Get or create user profile
     user_profile, created = UserProfile.objects.get_or_create(user=request.user)
 
-    # Check if this is user's first visit (no decks and no partnership)
-    user_decks_count = Deck.objects.filter(user=request.user).count()
-    has_partnership = Partnership.objects.filter(
-        Q(user_a=request.user) | Q(user_b=request.user),
-        is_active=True
-    ).exists()
-
-    # Redirect to welcome page if first visit (unless coming from welcome)
-    if user_decks_count == 0 and not has_partnership and not request.GET.get('skip_welcome'):
-        # Check session to see if they've already seen welcome
-        if not request.session.get('welcome_shown'):
-            request.session['welcome_shown'] = True
-            return redirect('welcome')
+    # Show the welcome/onboarding screen exactly once per user (first visit ever).
+    # The "seen" flag lives on the profile, not the session, so it survives
+    # logout/login (logout() flushes the session).
+    if not user_profile.onboarding_completed and not request.GET.get('skip_welcome'):
+        user_profile.mark_onboarding_complete()
+        return redirect('welcome')
 
     # Get user's partnership
     partnership = Partnership.objects.filter(
@@ -477,6 +470,7 @@ def card_list(request, deck_id):
         cards = deck.cards.all().order_by('created_at')
         data = [{
             'id': card.id,
+            'deck': card.deck_id,
             # Language fields
             'language_a': card.language_a,
             'language_b': card.language_b,
@@ -953,6 +947,34 @@ def deck_stats(request, deck_id):
 # Partnership API Endpoints
 # ============================================================================
 
+def _user_has_active_partnership(user):
+    """Return True if the user is already in an active partnership."""
+    from django.db.models import Q
+    return Partnership.objects.filter(
+        Q(user_a=user) | Q(user_b=user),
+        is_active=True
+    ).exists()
+
+
+def _activate_partnership(inviter, acceptor):
+    """
+    Create the partnership between two users, reusing a previously dissolved
+    row if one exists (in either orientation). Dissolve is a soft delete, so a
+    plain create() would hit the unique_together(user_a, user_b) constraint
+    when the same pair re-partners.
+    """
+    from django.db.models import Q
+    partnership = Partnership.objects.filter(
+        Q(user_a=inviter, user_b=acceptor) | Q(user_a=acceptor, user_b=inviter)
+    ).first()
+    if partnership:
+        partnership.is_active = True
+        partnership.save(update_fields=['is_active'])
+    else:
+        partnership = Partnership.objects.create(user_a=inviter, user_b=acceptor)
+    return partnership
+
+
 @login_required
 @require_http_methods(["POST"])
 def partnership_invite(request):
@@ -1046,12 +1068,7 @@ def partnership_accept(request):
             }, status=400)
 
         # Check if acceptor already has partnership
-        existing = Partnership.objects.filter(
-            Q(user_a=request.user) | Q(user_b=request.user),
-            is_active=True
-        ).exists()
-
-        if existing:
+        if _user_has_active_partnership(request.user):
             return JsonResponse({
                 'success': False,
                 'error': {
@@ -1060,11 +1077,19 @@ def partnership_accept(request):
                 }
             }, status=400)
 
-        # Create partnership
-        partnership = Partnership.objects.create(
-            user_a=invitation.inviter,
-            user_b=request.user
-        )
+        # Check if the inviter has since partnered with someone else (the code
+        # may have been generated before they accepted another invitation).
+        if _user_has_active_partnership(invitation.inviter):
+            return JsonResponse({
+                'success': False,
+                'error': {
+                    'code': 'INVITER_UNAVAILABLE',
+                    'message': 'This invitation is no longer available; the inviter already has a partner'
+                }
+            }, status=400)
+
+        # Create partnership (reuses a dissolved row for this pair if present)
+        partnership = _activate_partnership(invitation.inviter, request.user)
 
         # Mark invitation as accepted
         invitation.accepted_by = request.user
@@ -1121,20 +1146,17 @@ def join_partnership(request, code):
             return redirect('index')
 
         # Check if acceptor already has partnership
-        existing = Partnership.objects.filter(
-            Q(user_a=request.user) | Q(user_b=request.user),
-            is_active=True
-        ).exists()
-
-        if existing:
+        if _user_has_active_partnership(request.user):
             messages.warning(request, 'You already have an active learning partnership.')
             return redirect('index')
 
-        # Create partnership
-        partnership = Partnership.objects.create(
-            user_a=invitation.inviter,
-            user_b=request.user
-        )
+        # Check if the inviter has since partnered with someone else.
+        if _user_has_active_partnership(invitation.inviter):
+            messages.error(request, 'This invitation is no longer available; the inviter already has a partner.')
+            return redirect('index')
+
+        # Create partnership (reuses a dissolved row for this pair if present)
+        partnership = _activate_partnership(invitation.inviter, request.user)
 
         # Mark invitation as accepted
         invitation.accepted_by = request.user
