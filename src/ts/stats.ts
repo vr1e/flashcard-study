@@ -192,10 +192,13 @@ function initializeCharts(): void {
 /**
  * Update cards due chart
  */
-function updateCardsDueChart(_stats: any): void {
-    // TODO: Implement with real data from stats
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const data = [12, 15, 8, 10, 20, 5, 3]; // Placeholder
+function updateCardsDueChart(stats: any): void {
+    const forecast = stats.cards_due_forecast || [];
+
+    const labels = forecast.map((d: any, i: number) =>
+        i === 0 ? 'Today' : formatDate(new Date(d.date))
+    );
+    const data = forecast.map((d: any) => d.count);
 
     cardsDueChart.data.labels = labels;
     cardsDueChart.data.datasets[0].data = data;
@@ -221,10 +224,11 @@ function updateStudyActivityChart(stats: any): void {
 /**
  * Update deck quality chart
  */
-function updateDeckQualityChart(_stats: any): void {
-    // TODO: Implement with real deck-specific data
-    const labels = ['Deck 1', 'Deck 2', 'Deck 3']; // Placeholder
-    const data = [4.2, 3.8, 4.5]; // Placeholder
+function updateDeckQualityChart(stats: any): void {
+    const deckQuality = stats.deck_quality || [];
+
+    const labels = deckQuality.map((d: any) => d.title);
+    const data = deckQuality.map((d: any) => d.average_quality);
 
     deckQualityChart.data.labels = labels;
     deckQualityChart.data.datasets[0].data = data;
@@ -234,9 +238,8 @@ function updateDeckQualityChart(_stats: any): void {
 /**
  * Update quality distribution chart
  */
-function updateQualityDistributionChart(_stats: any): void {
-    // TODO: Implement with real quality distribution data
-    const data = [5, 10, 15, 30, 25, 15]; // Placeholder
+function updateQualityDistributionChart(stats: any): void {
+    const data = stats.quality_distribution || [0, 0, 0, 0, 0, 0];
 
     qualityDistributionChart.data.datasets[0].data = data;
     qualityDistributionChart.update();
