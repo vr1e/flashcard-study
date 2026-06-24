@@ -179,13 +179,20 @@ main {
     font-size: 1.25rem;
 }
 
-/* Deck card action buttons — keep on one row, no wrapping */
+/* Deck card action buttons — wrap to a new row instead of overflowing */
+.deck-actions {
+    flex-wrap: wrap;
+}
+
 .deck-actions .btn {
     white-space: nowrap;
 }
 
+/* View/Study grow to fill but keep a sensible minimum so they wrap as a pair
+   rather than spilling out of the card on narrow widths */
 .deck-actions .flex-fill {
     flex-basis: 0;
+    min-width: 6rem;
 }
 
 /* Course and Collection Badges */
