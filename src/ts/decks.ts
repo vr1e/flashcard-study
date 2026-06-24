@@ -54,18 +54,17 @@ async function loadDecks(): Promise<void> {
             singleModeView.style.display = 'none';
             dualModeView.style.display = ''; // Remove inline style to let CSS grid take over
 
-            // Show courses section if any (cards live in a half-width column,
-            // so keep them wide: one per row, two on very large screens)
+            // Show courses section if any
             if (courses.length > 0 && coursesSection && coursesGrid) {
                 coursesSection.style.display = 'block';
-                const courseCards = courses.map(deck => createDeckCard(deck, true, 'col-12 col-xxl-6'));
+                const courseCards = courses.map(deck => createDeckCard(deck, true));
                 coursesGrid.innerHTML = courseCards.join('');
             }
 
             // Show collections section if any
             if (collections.length > 0 && collectionsSection && collectionsGrid) {
                 collectionsSection.style.display = 'block';
-                const collectionCards = collections.map(deck => createDeckCard(deck, false, 'col-12 col-xxl-6'));
+                const collectionCards = collections.map(deck => createDeckCard(deck, false));
                 collectionsGrid.innerHTML = collectionCards.join('');
             }
         } else {
@@ -101,7 +100,7 @@ async function loadDecks(): Promise<void> {
 /**
  * Create HTML for a single deck card
  */
-function createDeckCard(deck: any, isCourse: boolean = false, colClass: string = 'col-md-6 col-lg-4'): string {
+function createDeckCard(deck: any, isCourse: boolean = false): string {
     const typeBadge = isCourse
         ? `<span class="badge course-badge"><i class="bi bi-people-fill"></i> Course</span> `
         : `<span class="badge collection-badge"><i class="bi bi-book"></i> Collection</span> `;
@@ -117,7 +116,6 @@ function createDeckCard(deck: any, isCourse: boolean = false, colClass: string =
         : '';
 
     return `
-        <div class="${colClass}">
             <div class="card deck-card h-100">
                 <div class="card-body">
                     <div class="mb-2">${typeBadge}</div>
@@ -146,7 +144,6 @@ function createDeckCard(deck: any, isCourse: boolean = false, colClass: string =
                     </div>
                 </div>
             </div>
-        </div>
     `;
 }
 

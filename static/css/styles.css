@@ -179,6 +179,14 @@ main {
     font-size: 1.25rem;
 }
 
+/* Deck card grid — cards fill available width instead of fixed fractions.
+   auto-fit collapses empty tracks, so a single card stretches to fill the row. */
+.deck-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+
 /* Deck card action buttons — wrap to a new row instead of overflowing */
 .deck-actions {
     flex-wrap: wrap;
