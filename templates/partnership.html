@@ -83,6 +83,26 @@
                     <button id="cancel-invite-btn" class="btn btn-outline-secondary btn-sm">
                         Cancel
                     </button>
+
+                    <hr class="my-4">
+
+                    <h6>Or share a link</h6>
+                    <div class="input-group mb-3" style="max-width: 480px; margin: 0 auto;">
+                        <input type="text" id="share-url" class="form-control" readonly>
+                        <button id="copy-url-btn" class="btn btn-outline-primary">
+                            <i class="bi bi-link-45deg"></i> Copy Link
+                        </button>
+                    </div>
+
+                    <div id="qr-code" class="d-flex justify-content-center my-3"></div>
+                    <p class="text-muted small">Scan the QR code to join</p>
+
+                    <a id="whatsapp-share" class="btn btn-success btn-sm me-2" target="_blank" rel="noopener">
+                        <i class="bi bi-whatsapp"></i> WhatsApp
+                    </a>
+                    <a id="email-share" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-envelope"></i> Email
+                    </a>
                 </div>
             </div>
 
@@ -173,6 +193,28 @@
             document.getElementById('invitation-expires').textContent =
                 new Date(invitation.expires_at).toLocaleString();
 
+            // Shareable link (/join/<code>/ auto-accepts when opened logged in)
+            const shareUrl = `${window.location.origin}/join/${invitation.code}/`;
+            document.getElementById('share-url').value = shareUrl;
+
+            // Social share links
+            document.getElementById('whatsapp-share').href =
+                `https://wa.me/?text=${encodeURIComponent('Join me on Flashcard Study! ' + shareUrl)}`;
+            document.getElementById('email-share').href =
+                `mailto:?subject=${encodeURIComponent('Join me on Flashcard Study')}&body=${encodeURIComponent('Click this link to become my learning partner: ' + shareUrl)}`;
+
+            // QR code (QRCode global loaded via CDN in base.html)
+            const qrContainer = document.getElementById('qr-code');
+            qrContainer.innerHTML = '';
+            if (window.QRCode) {
+                new window.QRCode(qrContainer, {
+                    text: shareUrl,
+                    width: 180,
+                    height: 180,
+                    correctLevel: window.QRCode.CorrectLevel.M
+                });
+            }
+
             document.getElementById('no-partnership').style.display = 'none';
             document.getElementById('invitation-display').style.display = 'block';
         } catch (error) {
@@ -226,11 +268,24 @@
         });
     }
 
+    function copyShareUrl() {
+        const shareUrl = document.getElementById('share-url').value;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            const btn = document.getElementById('copy-url-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 2000);
+        });
+    }
+
     // Event listeners
     document.getElementById('generate-invite-btn').addEventListener('click', generateInvitation);
     document.getElementById('accept-invite-btn').addEventListener('click', acceptInvitation);
     document.getElementById('dissolve-btn').addEventListener('click', dissolvePartnership);
     document.getElementById('copy-code-btn').addEventListener('click', copyCode);
+    document.getElementById('copy-url-btn').addEventListener('click', copyShareUrl);
     document.getElementById('cancel-invite-btn').addEventListener('click', () => {
         document.getElementById('invitation-display').style.display = 'none';
         document.getElementById('no-partnership').style.display = 'block';

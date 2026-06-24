@@ -1,5 +1,5 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -92,7 +92,7 @@
 		<footer class="bg-light text-center text-muted py-3 mt-5">
 			<div class="container">
 				<p class="mb-0">
-					Flashcard Study Tool &copy; 2024 | Spaced Repetition Learning
+					Flashcard Study Tool &copy; 2026 | Spaced Repetition Learning
 				</p>
 			</div>
 		</footer>
@@ -107,8 +107,6 @@
 		<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 		<!-- CSRF Token for AJAX requests -->
-		{% csrf_token %}
-
-		{% block extra_js %}{% endblock %}
+		{% csrf_token %} {% block extra_js %}{% endblock %}
 	</body>
 </html>
