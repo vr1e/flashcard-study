@@ -155,16 +155,37 @@ main {
     }
 }
 
-/* Course/Collection Color Coding */
+/* Course/Collection Color Coding — sections as clean panels with a top accent */
+.partner-section,
+.personal-section {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-top-width: 4px;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
 .partner-section {
-    border-left: 4px solid #ff8c42;
-    padding-left: 1.5rem;
-    margin-bottom: 2rem;
+    border-top-color: #ff8c42;
 }
 
 .personal-section {
-    border-left: 4px solid #0d6efd;
-    padding-left: 1.5rem;
+    border-top-color: #0d6efd;
+}
+
+.partner-section h4,
+.personal-section h4 {
+    font-size: 1.25rem;
+}
+
+/* Deck card action buttons — keep on one row, no wrapping */
+.deck-actions .btn {
+    white-space: nowrap;
+}
+
+.deck-actions .flex-fill {
+    flex-basis: 0;
 }
 
 /* Course and Collection Badges */
@@ -200,18 +221,18 @@ main {
     font-weight: 600;
 }
 
-/* Dual-Mode Dashboard Layout */
+/* Dual-Mode Dashboard Layout — auto-fit so a lone visible panel fills the row */
 .dual-mode-dashboard {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 1.5rem;
     margin-top: 2rem;
+    align-items: start;
 }
 
-@media (max-width: 991px) {
+@media (max-width: 575px) {
     .dual-mode-dashboard {
         grid-template-columns: 1fr;
-        gap: 2rem;
     }
 }
 
