@@ -95,8 +95,8 @@ def get_study_stats(user, deck=None, deck_filter=None):
         - recent_activity (last 7 days)
         - etc.
     """
-    from .models import Review, Card, Deck, StudySession
-    from django.db.models import Avg, Count, Sum
+    from .models import Review, Card, Deck, StudySession, UserCardProgress
+    from django.db.models import Avg, Count, Sum, Q
     from django.db.models.functions import TruncDate
 
     # Initialize separate counts (may not be available for specific deck/filter)
@@ -109,29 +109,35 @@ def get_study_stats(user, deck=None, deck_filter=None):
     if deck:
         reviews = Review.objects.filter(card__deck=deck)
         cards = Card.objects.filter(deck=deck)
+        decks_in_scope = Deck.objects.filter(pk=deck.pk)
         total_decks = 1
     elif deck_filter is not None:
         # Filter by specific set of decks (courses or collections)
         reviews = Review.objects.filter(session__user=user, card__deck__in=deck_filter)
         cards = Card.objects.filter(deck__in=deck_filter)
+        decks_in_scope = deck_filter
         total_decks = deck_filter.count()
     else:
-        from django.db.models import Q
-
         reviews = Review.objects.filter(session__user=user)
 
-        # Separate personal and shared decks for breakdown
-        personal_decks = Deck.objects.filter(user=user).distinct()
-
+        # Shared decks: any deck in an active partnership the user belongs to,
+        # regardless of who created it. Mirrors user_stats() "courses" filter.
         shared_decks = Deck.objects.filter(
-            Q(partnerships__user_a=user, partnerships__is_active=True) |
-            Q(partnerships__user_b=user, partnerships__is_active=True)
-        ).exclude(user=user).distinct()
+            Q(partnerships__user_a=user) | Q(partnerships__user_b=user),
+            partnerships__is_active=True,
+        ).distinct()
 
-        # Include both owned decks and partnership decks
+        # Personal decks: decks the user owns that are NOT shared.
+        # Mirrors user_stats() "collections" filter.
+        personal_decks = Deck.objects.filter(user=user).exclude(
+            pk__in=shared_decks.values('pk')
+        ).distinct()
+
+        # Include both personal and shared decks
         user_decks = personal_decks | shared_decks
 
         cards = Card.objects.filter(deck__in=user_decks)
+        decks_in_scope = user_decks
         total_decks = user_decks.count()
         personal_decks_count = personal_decks.count()
         shared_decks_count = shared_decks.count()
@@ -148,13 +154,26 @@ def get_study_stats(user, deck=None, deck_filter=None):
     avg_quality_result = reviews.aggregate(Avg('quality'))
     average_quality = round(avg_quality_result['quality__avg'] or 0, 2)
 
-    # Cards due today
-    cards_due_today = cards.filter(next_review__lte=timezone.now()).count()
+    # Per-user progress for the cards in scope (per-user, per-direction SM-2 state).
+    # Due counts are based on this rather than the legacy Card.next_review so each
+    # partner sees their own schedule for shared decks.
+    progress_qs = UserCardProgress.objects.filter(user=user, card__in=cards)
 
-    # Study streak (simplified: check if user studied in last 24h)
-    yesterday = timezone.now() - timedelta(days=1)
-    studied_recently = reviews.filter(reviewed_at__gte=yesterday).exists()
-    study_streak_days = 1 if studied_recently else 0
+    # Cards due today (and overdue) for this user
+    now = timezone.now()
+    cards_due_today = progress_qs.filter(next_review__lte=now).count()
+
+    # Study streak: consecutive days (ending today or yesterday) with reviews
+    review_dates = set(
+        reviews.annotate(d=TruncDate('reviewed_at')).values_list('d', flat=True)
+    )
+    study_streak_days = 0
+    check = timezone.localdate()
+    if check not in review_dates:
+        check = check - timedelta(days=1)
+    while check in review_dates:
+        study_streak_days += 1
+        check = check - timedelta(days=1)
 
     # Recent activity (last 7 days)
     recent_activity = []
@@ -179,6 +198,40 @@ def get_study_stats(user, deck=None, deck_filter=None):
     # Reverse to get chronological order (oldest to newest)
     recent_activity.reverse()
 
+    # Cards due forecast (next 7 days) based on this user's progress schedule.
+    # Day 0 includes everything due now or overdue.
+    cards_due_forecast = []
+    for i in range(7):
+        day = now + timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+        if i == 0:
+            count = progress_qs.filter(next_review__lte=day_end).count()
+        else:
+            count = progress_qs.filter(
+                next_review__gte=day_start, next_review__lte=day_end
+            ).count()
+        cards_due_forecast.append({
+            'date': day_start.strftime('%Y-%m-%d'),
+            'count': count,
+        })
+
+    # Average quality per deck (only decks the user has actually reviewed)
+    deck_quality = [
+        {'title': row['card__deck__title'], 'average_quality': round(row['avg'], 2)}
+        for row in reviews.values('card__deck', 'card__deck__title')
+        .annotate(avg=Avg('quality'))
+        .order_by('card__deck__title')
+        if row['avg'] is not None
+    ]
+
+    # Quality distribution (counts of reviews rated 0..5)
+    quality_distribution = [0, 0, 0, 0, 0, 0]
+    for row in reviews.values('quality').annotate(c=Count('id')):
+        q = row['quality']
+        if q is not None and 0 <= q <= 5:
+            quality_distribution[q] = row['c']
+
     result = {
         'total_reviews': total_reviews,
         'total_cards': total_cards,
@@ -187,6 +240,9 @@ def get_study_stats(user, deck=None, deck_filter=None):
         'study_streak_days': study_streak_days,
         'total_decks': total_decks,
         'recent_activity': recent_activity,
+        'cards_due_forecast': cards_due_forecast,
+        'deck_quality': deck_quality,
+        'quality_distribution': quality_distribution,
     }
 
     # Add separate counts if available (when not filtering by specific deck)

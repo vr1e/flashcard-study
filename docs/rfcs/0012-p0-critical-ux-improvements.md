@@ -253,6 +253,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 ### 4. Statistics Counting Fix (1-2 hours)
 
+> **Update (2026-06-24):** The statistics work was implemented in
+> `get_study_stats()`/`user_stats()` (not a `get_statistics` view) and the
+> pseudocode below is illustrative only — it references a `shared` deck field
+> and `created_by` filtering that don't exist; sharing is determined by active
+> `Partnership` membership. This fix was completed and extended in
+> [RFC 0016](0016-statistics-accuracy-overhaul.md), which also makes the
+> creator's shared decks count as shared, switches due counts to per-user
+> `UserCardProgress`, and replaces the placeholder charts with real data.
+
 **Current Issue:** Shared courses show as "0 Total Courses" for non-creators.
 
 **Backend Fix:**

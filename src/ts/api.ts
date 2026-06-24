@@ -103,6 +103,15 @@ interface Statistics {
 		cards_studied: number;
 		time_spent: number;
 	}>;
+	cards_due_forecast: Array<{
+		date: string;
+		count: number;
+	}>;
+	deck_quality: Array<{
+		title: string;
+		average_quality: number;
+	}>;
+	quality_distribution: number[];
 	// Optional separate counts (available when not filtering by specific deck)
 	personal_decks?: number;
 	shared_decks?: number;
