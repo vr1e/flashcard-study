@@ -223,41 +223,24 @@ If something goes wrong, check PythonAnywhere logs:
 
 ## Updating the Application
 
-When you push code changes:
+Deployment is a single self-contained step on the server. From a Bash console:
 
-1. **Pull latest code**:
+```bash
+cd ~/flashcard-study
+./scripts/deploy.sh
+```
 
-   ```bash
-   cd ~/flashcard-study
-   git pull origin main
-   ```
+This pulls the latest code, rebuilds the TypeScript frontend (`npm run build`),
+installs any new Python dependencies, runs migrations, collects static files,
+and reloads the web app.
 
-2. **Rebuild TypeScript** (if frontend changed):
+> **Reload ≠ deploy.** Clicking **Reload** on the Web tab only restarts the
+> worker against whatever code is already on disk — it does **not** pull new
+> code. Always run `deploy.sh` (or at least `git pull`) first.
 
-   ```bash
-   npm run build
-   ```
-
-3. **Install new dependencies** (if requirements.txt changed):
-
-   ```bash
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-4. **Run migrations** (if models changed):
-
-   ```bash
-   python manage.py migrate
-   ```
-
-5. **Collect static files** (if static files changed):
-
-   ```bash
-   python manage.py collectstatic --noinput
-   ```
-
-6. **Reload application**: Click Reload button on PythonAnywhere Web tab
+If the script can't find your WSGI file to auto-reload (non-standard
+username/domain), it prints a warning — just click **Reload** on the Web tab, or
+export `PA_USERNAME` to match your domain before running it.
 
 ## Troubleshooting
 
@@ -336,37 +319,15 @@ Whitenoise is already configured for gzip compression of static files. No additi
 - Monitor usage in Account tab
 - Consider upgrading if limits are reached
 
-## Automated Deployment (Optional)
+## Continuous Integration
 
-Automate deployments via GitHub Actions - just `git push origin main`.
+`.github/workflows/ci.yml` runs the test suite, Django system/deploy checks, and
+a TypeScript compile check on every push and pull request to `main`. It is
+**CI only** — it does not deploy. PythonAnywhere's free tier has no SSH, so
+deployment is the manual `scripts/deploy.sh` step above.
 
-### Quick Setup (10 minutes)
-
-**1. Create deployment script on PythonAnywhere:**
-
-```bash
-nano ~/deploy.sh
-```
-
-Copy from `scripts/deploy.sh`, change `USERNAME`, then `chmod +x ~/deploy.sh`
-
-**2. Get API token:** PythonAnywhere → Account → API Token → Create
-
-**3. Add GitHub Secrets** (Settings → Secrets → Actions):
-
-- `PA_USERNAME` - PythonAnywhere username
-- `PA_API_TOKEN` - from step 2
-- `PA_DOMAIN` - e.g., `username.pythonanywhere.com`
-
-**4. Push to test:** Workflow is at `.github/workflows/deploy.yml`
-
-### Flow
-
-Push → Tests → TypeScript build → Upload JS → Deploy → Reload (~3-5 min)
-
-**Troubleshooting:** Check `~/flashcard-study/deployment.log` or Web tab → Error log
-
-See `docs/rfcs/0006-automated-deployment.md` for details.
+**Deploy troubleshooting:** check `~/flashcard-study/deployment.log` or the Web
+tab → Error log.
 
 ---
 

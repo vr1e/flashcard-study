@@ -1,0 +1,63 @@
+name: CI
+
+# Deployment is done on the server with scripts/deploy.sh (PythonAnywhere free
+# tier has no SSH for CI-driven deploys). This workflow only verifies the build.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests & build check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Django system checks
+        run: python manage.py check
+        env:
+          SECRET_KEY: "django-insecure-test-key-for-ci-only"
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
+      - name: Run Django deployment checks
+        run: python manage.py check --deploy
+        env:
+          SECRET_KEY: "django-insecure-test-key-for-ci-only"
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
+      - name: Run test suite
+        run: python manage.py test
+        env:
+          SECRET_KEY: "django-insecure-test-key-for-ci-only"
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Build TypeScript (compile check)
+        run: |
+          npm ci
+          npm run build
