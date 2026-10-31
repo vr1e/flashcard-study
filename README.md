@@ -90,9 +90,10 @@ Most of the complexity is in the data model and the scheduling logic:
    modules, no framework) with one typed API client, interfaces for every
    payload, card-flip animations, keyboard controls, and Chart.js dashboards. It
    is mobile-responsive via Bootstrap 5.
-5. **Tests and CI.** 46 automated tests cover the algorithm, models, statistics,
-   and the API/permission layer, run by a GitHub Actions pipeline that also
-   builds the TypeScript and deploys to PythonAnywhere.
+5. **Tests and CI.** Automated tests cover the algorithm, models, statistics,
+   and the API/permission layer. A GitHub Actions pipeline runs them along with
+   Django's deployment checks and a TypeScript build; a deploy script ships the
+   app to PythonAnywhere.
 
 ---
 
@@ -133,7 +134,7 @@ These are the files I wrote (standard Django/Node scaffolding is left out).
 `welcome.html`, `login.html`, `register.html`.
 
 **Other** — `docs/` (design RFCs + deployment guide),
-`.github/workflows/deploy.yml` (CI), `requirements.txt` / `package.json`,
+`.github/workflows/ci.yml` (CI), `scripts/deploy.sh` (PythonAnywhere deploy), `requirements.txt` / `package.json`,
 `.env.example`.
 
 ---
