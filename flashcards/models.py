@@ -62,9 +62,11 @@ class Deck(models.Model):
         creator = self.created_by.username if self.created_by else "unknown"
         return f"{self.title} ({creator})"
 
-    def cards_due_count(self):
-        """Count cards due for review."""
-        return self.cards.filter(next_review__lte=timezone.now()).count()
+    def cards_due_count(self, user):
+        """Count this user's due reviews (one per card direction), matching what a study session serves."""
+        return UserCardProgress.objects.filter(
+            user=user, card__deck=self, next_review__lte=timezone.now()
+        ).count()
 
     def total_cards(self):
         """Return total number of cards in deck."""

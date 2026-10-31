@@ -14,12 +14,12 @@ This guide covers deploying the Flashcard Study Tool to PythonAnywhere. The appl
 
 ### Python: 3.11 (Recommended)
 
-- **Django 4.2 LTS**: Compatible with Python 3.8-3.12
+- **Django 5.2 LTS**: Requires Python 3.10 or newer
 - **Python 3.11**: Active support until October 2027
 - **Alternatives**: Python 3.10 or 3.12 also supported
 - **PythonAnywhere**: Requires "Innit" system image for Python 3.10+
 
-**Why 3.11?** Excellent performance improvements, long support timeline, and fully compatible with Django 4.2 LTS.
+The Web tab's Python version must match the one `.venv` is built with.
 
 ### Node.js: v22.20.0 LTS (Recommended)
 
@@ -33,11 +33,11 @@ This guide covers deploying the Flashcard Study Tool to PythonAnywhere. The appl
 
 ### 1. Clone Repository
 
-SSH into your PythonAnywhere account and clone the repository:
+Open a **Bash console** (Consoles tab; the free tier has no SSH) and clone over HTTPS:
 
 ```bash
 cd ~
-git clone <your-repo-url> flashcard-study
+git clone https://github.com/vr1e/flashcard-study.git flashcard-study
 cd flashcard-study
 ```
 
@@ -155,6 +155,8 @@ application = get_wsgi_application()
 
 **Note**: Replace `yourusername` with your actual PythonAnywhere username.
 
+The WSGI file doesn't activate the virtualenv. In the Web tab → **Virtualenv** section, set `/home/yourusername/flashcard-study/.venv`, or imports like `decouple` fail with `ModuleNotFoundError`.
+
 **Important**: The `.env` file is automatically loaded by `python-decouple` when Django starts, so no manual loading is needed in the WSGI file.
 
 ### 9. Configure Static Files Mapping
@@ -258,14 +260,13 @@ export `PA_USERNAME` to match your domain before running it.
 
 - Ensure virtual environment is activated
 - Reinstall dependencies: `pip install -r requirements.txt`
-- Check WSGI file activates the correct venv path
+- Check the Web tab's **Virtualenv** path points at `.venv`
 
 ### Issue: Environment variables not loading
 
 **Solution**:
 
-- Verify `.env` file exists in project root
-- Check WSGI file has `load_dotenv()` call
+- Verify `.env` file exists in project root (`python-decouple` finds it there; no WSGI changes needed)
 - Ensure `python-decouple` is installed: `pip list | grep decouple`
 
 ### Issue: JavaScript not working
@@ -334,7 +335,7 @@ tab → Error log.
 ## Support
 
 - **PythonAnywhere Help**: https://help.pythonanywhere.com/
-- **Django Deployment Docs**: https://docs.djangoproject.com/en/4.2/howto/deployment/
+- **Django Deployment Docs**: https://docs.djangoproject.com/en/5.2/howto/deployment/
 - **Project Issues**: Check project README for issue tracker
 
 ---

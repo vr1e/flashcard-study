@@ -315,3 +315,40 @@ class CardListApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         cards = response.json()["data"]["cards"]
         self.assertEqual(cards[0]["deck"], self.deck.id)
+
+
+class CardsDueCountTests(TestCase):
+    """cards_due reflects the viewing user's own schedule, not the legacy Card fields."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("owner", password="pw")
+        self.client.force_login(self.user)
+        self.deck = Deck.objects.create(user=self.user, created_by=self.user, title="Spanish")
+        self.client.post(
+            reverse("api_card_create", args=[self.deck.id]),
+            data=json.dumps({"language_a": "casa", "language_b": "house"}),
+            content_type="application/json",
+        )
+        self.card = Card.objects.get(deck=self.deck)
+
+    def _cards_due(self):
+        decks = self.client.get(reverse("api_deck_list")).json()["data"]["collections"]
+        return decks[0]["cards_due"]
+
+    def test_new_card_is_due_in_both_directions(self):
+        self.assertEqual(self._cards_due(), 2)
+
+    def test_review_removes_card_from_due_count(self):
+        self.client.post(
+            reverse("api_submit_review", args=[self.card.id]),
+            data=json.dumps({"quality": 5, "direction": "A_TO_B"}),
+            content_type="application/json",
+        )
+        self.assertEqual(self._cards_due(), 1)
+        detail = self.client.get(reverse("api_deck_detail", args=[self.deck.id])).json()
+        self.assertEqual(detail["data"]["cards_due"], 1)
+
+    def test_other_users_progress_is_not_counted(self):
+        other = User.objects.create_user("other", password="pw")
+        UserCardProgress.objects.create(user=other, card=self.card, study_direction="A_TO_B")
+        self.assertEqual(self._cards_due(), 2)
