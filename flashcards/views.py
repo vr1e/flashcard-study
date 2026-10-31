@@ -220,7 +220,7 @@ def deck_list(request):
             'created_at': deck.created_at.isoformat(),
             'updated_at': deck.updated_at.isoformat(),
             'total_cards': deck.total_cards(),
-            'cards_due': deck.cards_due_count(),
+            'cards_due': deck.cards_due_count(request.user),
             'type': 'course' if (is_shared or is_pending) else 'collection',
             'is_shared': is_shared,
             'share_pending': is_pending,
@@ -363,7 +363,7 @@ def deck_detail_api(request, deck_id):
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
-                'cards_due': deck.cards_due_count(),
+                'cards_due': deck.cards_due_count(request.user),
             }
         })
     except Deck.DoesNotExist:
@@ -411,7 +411,7 @@ def deck_update(request, deck_id):
                 'created_at': deck.created_at.isoformat(),
                 'updated_at': deck.updated_at.isoformat(),
                 'total_cards': deck.total_cards(),
-                'cards_due': deck.cards_due_count(),
+                'cards_due': deck.cards_due_count(request.user),
             }
         })
 
