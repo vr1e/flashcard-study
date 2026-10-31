@@ -544,21 +544,12 @@ def card_create(request, deck_id):
 
         # Create UserCardProgress for all users with access to this deck
         from django.utils import timezone
-        users_with_access = [deck.user]  # Deck owner
+        users_with_access = {deck.user}
 
-        # Add partner if deck is shared
+        # A set: the owner is usually also one of the partners
         partnership = deck.partnerships.filter(is_active=True).first()
         if partnership:
-            # Use partnership's get_partner method for safer partner identification
-            try:
-                partner = partnership.get_partner(request.user)
-                users_with_access.append(partner)
-            except ValueError:
-                # Current user is not in partnership, add both partners to be safe
-                if partnership.user_a not in users_with_access:
-                    users_with_access.append(partnership.user_a)
-                if partnership.user_b not in users_with_access:
-                    users_with_access.append(partnership.user_b)
+            users_with_access.update({partnership.user_a, partnership.user_b})
 
         # Create progress records for both directions for each user
         for user in users_with_access:

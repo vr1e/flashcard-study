@@ -352,3 +352,26 @@ class CardsDueCountTests(TestCase):
         other = User.objects.create_user("other", password="pw")
         UserCardProgress.objects.create(user=other, card=self.card, study_direction="A_TO_B")
         self.assertEqual(self._cards_due(), 2)
+
+
+class SharedDeckCardCreateTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user("owner", password="pw")
+        self.partner = User.objects.create_user("partner", password="pw")
+        self.deck = Deck.objects.create(user=self.owner, created_by=self.owner, title="Shared")
+        Partnership.objects.create(user_a=self.owner, user_b=self.partner).decks.add(self.deck)
+
+    def _create_card(self, user):
+        self.client.force_login(user)
+        return self.client.post(
+            reverse("api_card_create", args=[self.deck.id]),
+            data=json.dumps({"language_a": "hvala", "language_b": "danke"}),
+            content_type="application/json",
+        )
+
+    def test_owner_and_partner_can_add_cards_with_progress_for_both(self):
+        for user in (self.owner, self.partner):
+            with self.subTest(user=user.username):
+                self.assertEqual(self._create_card(user).status_code, 201)
+        for user in (self.owner, self.partner):
+            self.assertEqual(UserCardProgress.objects.filter(user=user).count(), 4)
