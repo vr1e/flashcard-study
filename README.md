@@ -1,6 +1,6 @@
 # Flashcard Study Tool — Couples Language Learning
 
-#### Video Demo: <!-- TODO: paste your YouTube URL here -->
+#### Video Demo: https://youtu.be/7UW9j3sAn2U
 
 #### Author
 
