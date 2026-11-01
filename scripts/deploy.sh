@@ -18,7 +18,7 @@ USERNAME="${PA_USERNAME:-$(whoami)}"
 PROJECT_DIR="${PROJECT_DIR:-$HOME/flashcard-study}"
 WSGI_FILE="/var/www/${USERNAME}_pythonanywhere_com_wsgi.py"
 
-# Node is installed under ~/nodejs per docs/DEPLOYMENT.md; ensure it's on PATH
+# Node is installed under ~/nodejs; ensure it's on PATH
 # (a non-interactive shell won't have sourced ~/.bashrc).
 export PATH="$HOME/nodejs/bin:$PATH"
 
