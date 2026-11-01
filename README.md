@@ -134,7 +134,7 @@ These are the files I wrote (standard Django/Node scaffolding is left out).
 `welcome.html`, `login.html`, `register.html`.
 
 **Other** — `.github/workflows/ci.yml` (CI), `scripts/deploy.sh` (PythonAnywhere
-deploy), `requirements.txt` / `package.json`, `.env.example`.
+deploy, see `DEPLOYMENT.md`), `requirements.txt` / `package.json`, `.env.example`.
 
 ---
 
